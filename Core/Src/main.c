@@ -27,6 +27,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
+#include "w5500.h"
+#include "Define.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,6 +49,15 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+
+volatile uint8_t 	Gateway[4]={0xc0,0xA8,0x01,0x01};
+volatile uint8_t 	MAC[6]={0x53,0x52,0x48,0x10,0x20,0x30};   //MSB:SRH LSB:Random
+volatile uint8_t 	Subnet[4]={0xff,0xff,0xff,0x00};
+volatile uint8_t 	IP[4]={0xC0,0xA8,0x01,0xDE};
+volatile uint8_t 	DestIP[4]={0xC0,0xA8,0x01,0xFF};
+volatile uint16_t 	Sport = 0xAFC8;
+volatile uint16_t 	Dport = 0xABE2;
+
 
 /* USER CODE END PV */
 
@@ -93,6 +105,29 @@ int main(void)
   MX_SPI1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+	
+	 LL_SPI_SetRxFIFOThreshold(SPI2,LL_SPI_RX_FIFO_TH_QUARTER);
+	 LL_SPI_Enable(SPI1);	//Enable SPI1
+	 while( LL_SPI_IsEnabled(SPI1) == 0);	//Wait To Enable SPI
+	 
+	 LL_USART_Enable(USART2);
+	 while( LL_USART_IsEnabled(USART2) == 0); //Wait To Enable SPI
+	 
+	 //HAL_Delay(2000);
+	 while(!(getPHYCFGR() & PHYCFGR_LNK_ON));   //Wait for PHY On
+    setSn_RXBUF_SIZE(SOCKET_UDP,8);
+    setSn_TXBUF_SIZE(SOCKET_UDP,8);
+    setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP
+    setSn_IR(SOCKET_UDP,0x1F);
+    setSn_CR(SOCKET_UDP,Sn_CR_OPEN);
+		HAL_Delay(1000);
+		setGAR(Gateway);
+		setSHAR(MAC);
+		setSUBR(Subnet);
+		setSIPR(IP);
+		setSn_DIPR(SOCKET_UDP,DestIP);
+		setSn_PORT(SOCKET_UDP,Sport);
+		setSn_DPORT(SOCKET_UDP,Dport);
 
   /* USER CODE END 2 */
 
@@ -103,6 +138,11 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+//		HAL_Delay(1000);
+//		setSn_RXBUF_SIZE(SOCKET_UDP,8);
+//		HAL_Delay(1000);
+//		temp = getPHYCFGR();
+//		HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }

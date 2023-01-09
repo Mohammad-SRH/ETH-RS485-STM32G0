@@ -71,7 +71,7 @@ uint8_t  WIZCHIP_READ(uint32_t AddrSel)
    WIZCHIP.CS._select();
 
    AddrSel |= (_W5500_SPI_READ_ | _W5500_SPI_VDM_OP_);
-
+		
    if(!WIZCHIP.IF.SPI._read_burst || !WIZCHIP.IF.SPI._write_burst) 	// byte operation
    {
 	   WIZCHIP.IF.SPI._write_byte((AddrSel & 0x00FF0000) >> 16);

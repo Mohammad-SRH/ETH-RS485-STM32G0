@@ -51,9 +51,9 @@
 //A20140501 : for use the type - ptrdiff_t
 #include <stddef.h>
 //
-#include <mega8.h>
+#include "gpio.h"
 #include "wizchip_conf.h"
-#include <define.h>
+#include "Define.h"
 
 /////////////
 //M20150401 : Remove ; in the default callback function such as wizchip_cris_enter(), wizchip_cs_select() and etc.
@@ -117,12 +117,22 @@ void 	wizchip_bus_writedata(uint32_t AddrSel, iodata_t wb)  { *((volatile iodata
 //uint8_t wizchip_spi_readbyte(void)        {return 0;};
 uint8_t wizchip_spi_readbyte(void){
 
-    uint8_t data=0;
-    data=SPDR;
-    SPDR = 0x00;
-    while(!(SPSR & (1<<SPIF)));
-    data=SPDR;
-    return data;
+ //   uint8_t data=0;
+//    data=SPDR;
+//    SPDR = 0x00;
+//    while(!(SPSR & (1<<SPIF)));
+//    data=SPDR;
+//		while (LL_SPI_IsActiveFlag_BSY (SPI1) == 1);
+//		data = LL_SPI_ReceiveData8(SPI1); //Read Data From SPI
+		while (LL_SPI_IsActiveFlag_BSY (SPI1) == 1);
+//		LL_SPI_TransmitData8(SPI1,0x00);
+//		while (LL_SPI_IsActiveFlag_RXNE (SPI1) == 0);
+//		data = LL_SPI_ReceiveData8(SPI1); //Read Data From SP
+//		while (LL_SPI_IsActiveFlag_RXNE (SPI1) == 0);
+//    return data;
+//		while (LL_SPI_IsActiveFlag_RXNE (SPI1) == 0);
+		return LL_SPI_ReceiveData8(SPI1);
+	
 }
 
 /**
@@ -133,10 +143,15 @@ uint8_t wizchip_spi_readbyte(void){
 //void 	wizchip_spi_writebyte(uint8_t wb) {};
 void 	wizchip_spi_writebyte(uint8_t wb){
 
-    uint8_t temp=0;
-    SPDR = wb;
-    while(!(SPSR & (1<<SPIF)));
-    temp = SPDR;
+//	uint8_t temp=0;
+//    SPDR = wb;
+//    while(!(SPSR & (1<<SPIF)));
+//    temp = SPDR;
+	while (LL_SPI_IsActiveFlag_TXE (SPI1) == 0);			
+	LL_SPI_TransmitData8(SPI1,wb);
+  while (LL_SPI_IsActiveFlag_BSY (SPI1) == 1);
+//  while (LL_SPI_IsActiveFlag_RXNE (SPI1) == 0);
+//	temp = LL_SPI_ReceiveData8(SPI1); 
 }
 
 /**
@@ -176,31 +191,31 @@ _WIZCHIP  WIZCHIP =
       .IF.SPI._read_byte   = wizchip_spi_readbyte,
       .IF.SPI._write_byte  = wizchip_spi_writebyte
       };
-/*      
-_WIZCHIP  WIZCHIP =
-{
-    _WIZCHIP_IO_MODE_,
-    _WIZCHIP_ID_ ,
-    {
-        wizchip_cris_enter,
-        wizchip_cris_exit
-    },
-    {
-        wizchip_cs_select,
-        wizchip_cs_deselect
-    },
-    {
-        {
-            //M20150601 : Rename the function 
-            //wizchip_bus_readbyte,
-            //wizchip_bus_writebyte
-            wizchip_bus_readdata,
-            wizchip_bus_writedata
-        },
+      
+//_WIZCHIP  WIZCHIP =
+//{
+//    _WIZCHIP_IO_MODE_,
+//    _WIZCHIP_ID_ ,
+//    {
+//        wizchip_cris_enter,
+//        wizchip_cris_exit
+//    },
+//    {
+//        wizchip_cs_select,
+//        wizchip_cs_deselect
+//    },
+//    {
+//        {
+//            //M20150601 : Rename the function 
+//            //wizchip_bus_readbyte,
+//            //wizchip_bus_writebyte
+//            wizchip_bus_readdata,
+//            wizchip_bus_writedata
+//        },
 
-    }
-};
-*/
+//    }
+//};
+
 
 static uint8_t    _DNS_[4];      // DNS server ip address
 static dhcp_mode  _DHCP_;        // DHCP mode
