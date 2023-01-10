@@ -106,7 +106,7 @@ void MX_USART2_UART_Init(void)
   USART_InitStruct.OverSampling = LL_USART_OVERSAMPLING_16;
   LL_USART_Init(USART2, &USART_InitStruct);
   LL_USART_EnableDEMode(USART2);
-  LL_USART_SetDESignalPolarity(USART2, LL_USART_DE_POLARITY_HIGH);
+  LL_USART_SetDESignalPolarity(USART2, LL_USART_DE_POLARITY_LOW);
   LL_USART_SetDEAssertionTime(USART2, 0);
   LL_USART_SetDEDeassertionTime(USART2, 0);
   LL_USART_ConfigAsyncMode(USART2);

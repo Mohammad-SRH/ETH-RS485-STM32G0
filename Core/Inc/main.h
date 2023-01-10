@@ -55,6 +55,8 @@ extern "C" {
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
 
+
+
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -66,6 +68,9 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
+
+void usart2_SendAnswer_DMA(uint8_t length, uint8_t* ptr);
+uint8_t WIZ_recvudp (uint8_t *data );
 
 /* USER CODE END EFP */
 
@@ -80,6 +85,34 @@ void Error_Handler(void);
 #define ETH_RESET_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
+/* Protcol defines -----------------------------------------------------------*/
+
+#define Start_Byte          0x02
+#define Stop_Byte           0x03
+#define Magic_Command       0x22
+#define Locate_Commnad      0x23
+#define Command_POS         2
+
+/* IO defines -----------------------------------------------------------*/
+
+#define Wiz_deSelect        HAL_GPIO_WritePin(SPI1_NSS_GPIO_Port,SPI1_NSS_Pin,GPIO_PIN_SET)
+#define Wiz_Select          HAL_GPIO_WritePin(SPI1_NSS_GPIO_Port,SPI1_NSS_Pin,GPIO_PIN_RESET)
+
+/* Wiznet defines -----------------------------------------------------------*/
+
+#define SOCKET_UDP          0
+#define SOCKET_TCP          1  
+
+/* Network defines -----------------------------------------------------------*/
+
+#define IPSIZE				4
+#define SUBNETSIZE			4
+#define	GATEWAYSIZE			4
+#define MACSIZE				6
+#define DEFAULT_SOURCEPORT	0xAFC8//45000
+#define	DEFAULT_DESTPORT	0xABE1//44001
+
+
 
 /* USER CODE END Private defines */
 

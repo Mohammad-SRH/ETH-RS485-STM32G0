@@ -51,9 +51,9 @@
 //A20140501 : for use the type - ptrdiff_t
 #include <stddef.h>
 //
-#include "gpio.h"
+//#include "gpio.h"
 #include "wizchip_conf.h"
-#include "Define.h"
+#include "main.h"
 
 /////////////
 //M20150401 : Remove ; in the default callback function such as wizchip_cris_enter(), wizchip_cs_select() and etc.

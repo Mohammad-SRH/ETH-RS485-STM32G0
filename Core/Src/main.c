@@ -28,17 +28,34 @@
 /* USER CODE BEGIN Includes */
 
 #include "w5500.h"
-#include "Define.h"
+#include "string.h"
 
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef struct {
+	uint8_t GW[4];
+	uint8_t MAC[6];
+	uint8_t SUBNET[4];
+	uint8_t IPadd[4];
+	uint8_t DEST_IPADD[4];
+	uint16_t SOURCE_PORT;
+	uint16_t DEST_PORT;
+}WIZNetworksetting_t;
+
+
+const uint8_t 	defaultgateway[]={192,168,1,1};
+const uint8_t	defaultmac[]={0x22,0x33,0x44,0x55,0x66,0x77};
+const uint8_t	defaultsubnet[]={255,255,255,0};
+const uint8_t	defaultip[]={192,168,1,200};
+const uint8_t	defaultdestip[]={192,168,1,255};
 
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,14 +66,14 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
-volatile uint8_t 	Gateway[4]={0xc0,0xA8,0x01,0x01};
-volatile uint8_t 	MAC[6]={0x53,0x52,0x48,0x10,0x20,0x30};   //MSB:SRH LSB:Random
-volatile uint8_t 	Subnet[4]={0xff,0xff,0xff,0x00};
-volatile uint8_t 	IP[4]={0xC0,0xA8,0x01,0xDE};
-volatile uint8_t 	DestIP[4]={0xC0,0xA8,0x01,0xFF};
-volatile uint16_t 	Sport = 0xAFC8;
-volatile uint16_t 	Dport = 0xABE2;
+/* Global variables ---------------------------------------------------------*/
+WIZNetworksetting_t g_WIZNetworkSetting;
+volatile uint8_t g_usart2RxcommBuf[64];
+volatile uint8_t g_usart2_DataRDY = 0;
+volatile uint8_t g_UDPdataRDY = 0;
+volatile uint8_t g_usart2_DmaData[64];
+volatile uint8_t g_udpData[64];
+volatile uint8_t g_temp;
 
 
 /* USER CODE END PV */
@@ -79,7 +96,8 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	uint8_t udp_dataSize = 0;
+	
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -106,28 +124,29 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 	
-	 LL_SPI_SetRxFIFOThreshold(SPI2,LL_SPI_RX_FIFO_TH_QUARTER);
-	 LL_SPI_Enable(SPI1);	//Enable SPI1
-	 while( LL_SPI_IsEnabled(SPI1) == 0);	//Wait To Enable SPI
+	LL_SPI_SetRxFIFOThreshold(SPI2,LL_SPI_RX_FIFO_TH_QUARTER);
+	LL_SPI_Enable(SPI1);	//Enable SPI1
+	while( LL_SPI_IsEnabled(SPI1) == 0);	//Wait To Enable SPI
 	 
-	 LL_USART_Enable(USART2);
-	 while( LL_USART_IsEnabled(USART2) == 0); //Wait To Enable SPI
+	LL_USART_Enable(USART2);
+	while( LL_USART_IsEnabled(USART2) == 0); //Wait To Enable USART
 	 
 	 //HAL_Delay(2000);
-	 while(!(getPHYCFGR() & PHYCFGR_LNK_ON));   //Wait for PHY On
-    setSn_RXBUF_SIZE(SOCKET_UDP,8);
-    setSn_TXBUF_SIZE(SOCKET_UDP,8);
-    setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP
-    setSn_IR(SOCKET_UDP,0x1F);
-    setSn_CR(SOCKET_UDP,Sn_CR_OPEN);
-		HAL_Delay(1000);
-		setGAR(Gateway);
-		setSHAR(MAC);
-		setSUBR(Subnet);
-		setSIPR(IP);
-		setSn_DIPR(SOCKET_UDP,DestIP);
-		setSn_PORT(SOCKET_UDP,Sport);
-		setSn_DPORT(SOCKET_UDP,Dport);
+	while(!(getPHYCFGR() & PHYCFGR_LNK_ON));   //Wait for PHY On
+	
+	setSn_RXBUF_SIZE(SOCKET_UDP,8);
+	setSn_TXBUF_SIZE(SOCKET_UDP,8);
+	setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP
+	setSn_IR(SOCKET_UDP,0x1F);
+	setSn_CR(SOCKET_UDP,Sn_CR_OPEN);
+	
+	setGAR((memcpy(g_WIZNetworkSetting.GW,defaultgateway,GATEWAYSIZE)));
+	setSHAR(memcpy(g_WIZNetworkSetting.MAC,defaultmac,MACSIZE));
+	setSUBR(memcpy(g_WIZNetworkSetting.SUBNET,defaultsubnet,SUBNETSIZE));
+	setSIPR(memcpy(g_WIZNetworkSetting.IPadd,defaultip,IPSIZE));
+	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.DEST_IPADD,defaultdestip,IPSIZE));
+	setSn_PORT(SOCKET_UDP,DEFAULT_SOURCEPORT);
+	setSn_DPORT(SOCKET_UDP,DEFAULT_DESTPORT);
 
   /* USER CODE END 2 */
 
@@ -138,11 +157,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-//		HAL_Delay(1000);
-//		setSn_RXBUF_SIZE(SOCKET_UDP,8);
-//		HAL_Delay(1000);
-//		temp = getPHYCFGR();
-//		HAL_Delay(1000);
+		
   }
   /* USER CODE END 3 */
 }
@@ -194,6 +209,110 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void HAL_UART_IRQHandlerCallBack(void){
+	
+	uint8_t data;
+	static 	uint8_t usart2RxBuf[64];
+	static uint8_t usart2RxBuf_Counter=0;
+	static uint8_t rxisr_frameSize=0;
+	uint32_t isrflags   = LL_USART_ReadReg(USART2,ISR);
+	uint32_t errorflags = 0x00U;
+	uint8_t i=0;
+
+	
+  /* If no error occurs */
+	data = LL_USART_ReceiveData8 (USART2);
+	errorflags = (isrflags & (uint32_t)(USART_ISR_PE | USART_ISR_FE | USART_ISR_ORE | USART_ISR_NE));
+	if(errorflags == RESET)
+	{
+		switch(data){
+		case Start_Byte :
+			usart2RxBuf_Counter=0;
+			usart2RxBuf[usart2RxBuf_Counter] = data;
+			usart2RxBuf_Counter++; 
+		break;
+		case Stop_Byte :
+			usart2RxBuf[usart2RxBuf_Counter] = data;
+			usart2RxBuf_Counter++;
+			rxisr_frameSize=usart2RxBuf_Counter;
+			usart2RxBuf_Counter=0;
+			for(i=0;i<rxisr_frameSize;i++){
+				g_usart2RxcommBuf[i]=usart2RxBuf[i];    
+			}
+			usart2RxBuf_Counter = 0;
+			g_usart2_DataRDY = 1;
+		break;
+		default :
+			usart2RxBuf[usart2RxBuf_Counter] = data;
+			usart2RxBuf_Counter++;          
+		break;
+		}
+	}
+	LL_USART_ClearFlag_ORE(USART2);	
+	LL_USART_ClearFlag_PE(USART2);	
+	LL_USART_ClearFlag_FE(USART2);	
+	LL_USART_ClearFlag_NE(USART2);			
+}
+
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void usart2_SendAnswer_DMA (uint8_t length, uint8_t* ptr){
+
+	LL_DMA_DisableChannel(DMA1,LL_DMA_CHANNEL_1); //DISABLE channel to be able to change size
+	LL_DMA_SetMemoryAddress(DMA1,LL_DMA_CHANNEL_1,(uint32_t) ptr); //memory address
+	LL_DMA_SetPeriphAddress(DMA1,LL_DMA_CHANNEL_1,LL_USART_DMA_GetRegAddr(USART2,LL_USART_DMA_REG_DATA_TRANSMIT));// USART TRANSSMIT register address
+	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_1,length);		// set counter
+	LL_DMA_ClearFlag_GI2(DMA1);	//clearerr Channel 2 DMA Flags
+	LL_USART_ClearFlag_TC(USART2);     // Clear tc flag
+	LL_USART_EnableDMAReq_TX (USART2); // ENABLE USART DMA TRanssmit Req 
+	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);// enable channel 2
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+uint8_t WIZ_recvudp (uint8_t *data ){
+	
+uint16_t ptr = 0;
+uint32_t addrsel = 0;
+uint8_t header_size = 8;
+uint8_t ctrlSize = 0;
+uint8_t header[8];
+uint16_t datasize = 0;
+
+    if((getSn_IR(SOCKET_UDP) & Sn_IR_RECV ) && (getSn_IMR(SOCKET_UDP) & Sn_IR_RECV ) )
+	{
+        //LL_USART_TransmitData8(USART2,0xff);
+		setSn_IR(SOCKET_UDP , Sn_IR_RECV );
+        while((getSn_IMR(SOCKET_UDP) & Sn_IR_RECV) == 0);
+        ptr = getSn_RX_RD(SOCKET_UDP);
+        ctrlSize = getSn_RXBUF_SIZE(SOCKET_UDP);
+        addrsel = ((uint32_t)ptr << 8) + (WIZCHIP_RXBUF_BLOCK(SOCKET_UDP) << 3);
+        WIZCHIP_READ_BUF(addrsel, header, header_size);
+        ptr += header_size;
+        datasize = (header[6] << 8);
+        datasize += header[7];
+        addrsel = ((uint32_t)ptr << 8) + (WIZCHIP_RXBUF_BLOCK(SOCKET_UDP) << 3);
+        WIZCHIP_READ_BUF(addrsel, data, datasize); 
+        ptr += datasize;
+        setSn_RX_RD(SOCKET_UDP,ptr);
+        setSn_CR(SOCKET_UDP,Sn_CR_RECV );
+        
+        g_UDPdataRDY = 1;
+		
+//        return datasize;          
+    }
+	return datasize;
+}
+
 
 /* USER CODE END 4 */
 
