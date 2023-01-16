@@ -59,6 +59,8 @@
 //M20150401 : Remove ; in the default callback function such as wizchip_cris_enter(), wizchip_cs_select() and etc.
 /////////////
 
+//extern uint16_t g_temp;
+
 /**
  * @brief Default function to enable interrupt.
  * @note This function help not to access wrong address. If you do not describe this function or register any functions,
@@ -122,16 +124,10 @@ uint8_t wizchip_spi_readbyte(void){
 //    SPDR = 0x00;
 //    while(!(SPSR & (1<<SPIF)));
 //    data=SPDR;
-//		while (LL_SPI_IsActiveFlag_BSY (SPI1) == 1);
-//		data = LL_SPI_ReceiveData8(SPI1); //Read Data From SPI
-		while (LL_SPI_IsActiveFlag_BSY (SPI1) == 1);
-//		LL_SPI_TransmitData8(SPI1,0x00);
-//		while (LL_SPI_IsActiveFlag_RXNE (SPI1) == 0);
-//		data = LL_SPI_ReceiveData8(SPI1); //Read Data From SP
-//		while (LL_SPI_IsActiveFlag_RXNE (SPI1) == 0);
-//    return data;
-//		while (LL_SPI_IsActiveFlag_RXNE (SPI1) == 0);
-		return LL_SPI_ReceiveData8(SPI1);
+	while (LL_SPI_IsActiveFlag_BSY (SPI1) == 1);
+	LL_SPI_TransmitData8(SPI1,0x00);
+	while(LL_SPI_IsActiveFlag_RXNE(SPI1) == 0);///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	return LL_SPI_ReceiveData8(SPI1);
 	
 }
 
@@ -143,15 +139,15 @@ uint8_t wizchip_spi_readbyte(void){
 //void 	wizchip_spi_writebyte(uint8_t wb) {};
 void 	wizchip_spi_writebyte(uint8_t wb){
 
-//	uint8_t temp=0;
+uint8_t temp=0;
 //    SPDR = wb;
 //    while(!(SPSR & (1<<SPIF)));
 //    temp = SPDR;
-	while (LL_SPI_IsActiveFlag_TXE (SPI1) == 0);			
+	while (LL_SPI_IsActiveFlag_BSY (SPI1) == 1);
+	while(LL_SPI_IsActiveFlag_TXE(SPI1) == 0);	
 	LL_SPI_TransmitData8(SPI1,wb);
-  while (LL_SPI_IsActiveFlag_BSY (SPI1) == 1);
-//  while (LL_SPI_IsActiveFlag_RXNE (SPI1) == 0);
-//	temp = LL_SPI_ReceiveData8(SPI1); 
+	while(LL_SPI_IsActiveFlag_RXNE(SPI1) == 0);///<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	temp = LL_SPI_ReceiveData8(SPI1);
 }
 
 /**

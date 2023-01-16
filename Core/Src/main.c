@@ -24,11 +24,13 @@
 #include "usart.h"
 #include "gpio.h"
 
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
 #include "w5500.h"
 #include "string.h"
+#include "stdio.h"
 
 /* USER CODE END Includes */
 
@@ -50,6 +52,8 @@ const uint8_t	defaultmac[]={0x22,0x33,0x44,0x55,0x66,0x77};
 const uint8_t	defaultsubnet[]={255,255,255,0};
 const uint8_t	defaultip[]={192,168,1,200};
 const uint8_t	defaultdestip[]={192,168,1,255};
+const int8_t    waitForPHY[]={"Waiting For PHY...\r\n"};
+const int8_t	PHYReady[]={"PHY On.\r\n"};
 
 /* USER CODE END PTD */
 
@@ -72,8 +76,8 @@ volatile uint8_t g_usart2RxcommBuf[64];
 volatile uint8_t g_usart2_DataRDY = 0;
 volatile uint8_t g_UDPdataRDY = 0;
 volatile uint8_t g_usart2_DmaData[64];
-volatile uint8_t g_udpData[64];
-volatile uint8_t g_temp;
+uint8_t g_udpData[64];
+volatile uint16_t g_temp;
 
 
 /* USER CODE END PV */
@@ -97,6 +101,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	uint8_t udp_dataSize = 0;
+	int8_t strbuff[64];
 	
   /* USER CODE END 1 */
 
@@ -124,21 +129,26 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 	
-	LL_SPI_SetRxFIFOThreshold(SPI2,LL_SPI_RX_FIFO_TH_QUARTER);
+	LL_SPI_SetRxFIFOThreshold(SPI1,LL_SPI_RX_FIFO_TH_QUARTER);
 	LL_SPI_Enable(SPI1);	//Enable SPI1
 	while( LL_SPI_IsEnabled(SPI1) == 0);	//Wait To Enable SPI
 	 
 	LL_USART_Enable(USART2);
 	while( LL_USART_IsEnabled(USART2) == 0); //Wait To Enable USART
 	 
-	 //HAL_Delay(2000);
+	usart2_SendAnswer_DMA(strlen(waitForPHY),waitForPHY);
 	while(!(getPHYCFGR() & PHYCFGR_LNK_ON));   //Wait for PHY On
+	usart2_SendAnswer_DMA(strlen(PHYReady),PHYReady);
+	
+	
 	
 	setSn_RXBUF_SIZE(SOCKET_UDP,8);
 	setSn_TXBUF_SIZE(SOCKET_UDP,8);
 	setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP
+	g_temp = getSn_MR(SOCKET_UDP);
 	setSn_IR(SOCKET_UDP,0x1F);
 	setSn_CR(SOCKET_UDP,Sn_CR_OPEN);
+	while((getSn_SR(SOCKET_UDP) != 0x22));
 	
 	setGAR((memcpy(g_WIZNetworkSetting.GW,defaultgateway,GATEWAYSIZE)));
 	setSHAR(memcpy(g_WIZNetworkSetting.MAC,defaultmac,MACSIZE));
@@ -157,6 +167,14 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  udp_dataSize = WIZ_recvudp(g_udpData);
+	  if(g_UDPdataRDY ==1){
+		usart2_SendAnswer_DMA(strlen(g_udpData),g_udpData);
+		while(g_usart2_DataRDY == 0);
+		usart2_SendAnswer_DMA(strlen(g_usart2RxcommBuf),g_usart2RxcommBuf);
+		g_usart2_DataRDY = 0;
+		g_UDPdataRDY = 0;
+	  }
 		
   }
   /* USER CODE END 3 */
@@ -287,6 +305,9 @@ uint8_t header_size = 8;
 uint8_t ctrlSize = 0;
 uint8_t header[8];
 uint16_t datasize = 0;
+
+	
+//	g_temp = getSn_IR(SOCKET_UDP);
 
     if((getSn_IR(SOCKET_UDP) & Sn_IR_RECV ) && (getSn_IMR(SOCKET_UDP) & Sn_IR_RECV ) )
 	{
