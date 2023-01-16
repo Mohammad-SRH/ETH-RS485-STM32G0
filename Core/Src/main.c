@@ -21,9 +21,9 @@
 #include "dma.h"
 #include "i2c.h"
 #include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
-
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -77,7 +77,7 @@ volatile uint8_t g_usart2_DataRDY = 0;
 volatile uint8_t g_UDPdataRDY = 0;
 volatile uint8_t g_usart2_DmaData[64];
 uint8_t g_udpData[64];
-volatile uint16_t g_temp;
+volatile uint8_t g_timeOutCounter = 0;
 
 
 /* USER CODE END PV */
@@ -127,6 +127,7 @@ int main(void)
   MX_I2C1_Init();
   MX_SPI1_Init();
   MX_USART2_UART_Init();
+  MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
 	
 	LL_SPI_SetRxFIFOThreshold(SPI1,LL_SPI_RX_FIFO_TH_QUARTER);
@@ -135,6 +136,7 @@ int main(void)
 	 
 	LL_USART_Enable(USART2);
 	while( LL_USART_IsEnabled(USART2) == 0); //Wait To Enable USART
+	
 	 
 	usart2_SendAnswer_DMA(strlen(waitForPHY),waitForPHY);
 	while(!(getPHYCFGR() & PHYCFGR_LNK_ON));   //Wait for PHY On
@@ -145,7 +147,6 @@ int main(void)
 	setSn_RXBUF_SIZE(SOCKET_UDP,8);
 	setSn_TXBUF_SIZE(SOCKET_UDP,8);
 	setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP
-	g_temp = getSn_MR(SOCKET_UDP);
 	setSn_IR(SOCKET_UDP,0x1F);
 	setSn_CR(SOCKET_UDP,Sn_CR_OPEN);
 	while((getSn_SR(SOCKET_UDP) != 0x22));
@@ -157,23 +158,29 @@ int main(void)
 	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.DEST_IPADD,defaultdestip,IPSIZE));
 	setSn_PORT(SOCKET_UDP,DEFAULT_SOURCEPORT);
 	setSn_DPORT(SOCKET_UDP,DEFAULT_DESTPORT);
+	
+	__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
+	HAL_TIM_Base_Start_IT(&htim14);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
+  while (1)   
+	
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 	  udp_dataSize = WIZ_recvudp(g_udpData);
 	  if(g_UDPdataRDY ==1){
+		g_UDPdataRDY = 0;
 		usart2_SendAnswer_DMA(strlen(g_udpData),g_udpData);
-		while(g_usart2_DataRDY == 0);
+		while((g_usart2_DataRDY == 0) && (g_timeOutCounter < 10));
+		g_timeOutCounter = 0;
 		usart2_SendAnswer_DMA(strlen(g_usart2RxcommBuf),g_usart2RxcommBuf);
 		g_usart2_DataRDY = 0;
-		g_UDPdataRDY = 0;
+		
 	  }
 		
   }
@@ -202,10 +209,10 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV2;
-  RCC_OscInitStruct.PLL.PLLN = 25;
+  RCC_OscInitStruct.PLL.PLLM = RCC_PLLM_DIV1;
+  RCC_OscInitStruct.PLL.PLLN = 8;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV4;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -223,7 +230,6 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_PLLCLK, RCC_MCODIV_2);
 }
 
 /* USER CODE BEGIN 4 */
@@ -306,8 +312,6 @@ uint8_t ctrlSize = 0;
 uint8_t header[8];
 uint16_t datasize = 0;
 
-	
-//	g_temp = getSn_IR(SOCKET_UDP);
 
     if((getSn_IR(SOCKET_UDP) & Sn_IR_RECV ) && (getSn_IMR(SOCKET_UDP) & Sn_IR_RECV ) )
 	{
@@ -332,6 +336,19 @@ uint16_t datasize = 0;
 //        return datasize;          
     }
 	return datasize;
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void HAL_TIM14_IRQHandlerCallBack(void){
+	
+	g_timeOutCounter++;
+	if(g_timeOutCounter >= 200)g_timeOutCounter = 200;
+	__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
+	
+	
 }
 
 

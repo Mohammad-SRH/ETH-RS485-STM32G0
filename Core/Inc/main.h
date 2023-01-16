@@ -70,6 +70,7 @@ void Error_Handler(void);
 /* USER CODE BEGIN EFP */
 
 void usart2_SendAnswer_DMA(uint8_t length, uint8_t* ptr);
+void HAL_TIM14_IRQHandlerCallBack (void);
 uint8_t WIZ_recvudp (uint8_t *data );
 
 /* USER CODE END EFP */
