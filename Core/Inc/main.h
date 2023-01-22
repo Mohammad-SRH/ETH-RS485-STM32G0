@@ -69,9 +69,11 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 
-void usart2_SendAnswer_DMA(uint8_t length, uint8_t* ptr);
+void usart2_SendAnswer_DMA(uint8_t length, uint8_t *ptr);
 void HAL_TIM14_IRQHandlerCallBack (void);
 uint8_t WIZ_recvudp (uint8_t *data );
+uint8_t Frame_check (uint8_t *data,uint8_t len);
+void WIZ_sendudp (uint8_t *data, uint16_t len);
 
 /* USER CODE END EFP */
 
@@ -113,6 +115,9 @@ uint8_t WIZ_recvudp (uint8_t *data );
 #define DEFAULT_SOURCEPORT	0xAFC8//45000
 #define	DEFAULT_DESTPORT	0xABE1//44001
 
+/* MCU defines -----------------------------------------------------------*/
+
+#define MCU_ID_BASE				0x40015800
 
 
 /* USER CODE END Private defines */

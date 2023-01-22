@@ -76,8 +76,16 @@ volatile uint8_t g_usart2RxcommBuf[64];
 volatile uint8_t g_usart2_DataRDY = 0;
 volatile uint8_t g_UDPdataRDY = 0;
 volatile uint8_t g_usart2_DmaData[64];
-uint8_t g_udpData[64];
+volatile uint8_t g_udpData[64];
 volatile uint8_t g_timeOutCounter = 0;
+volatile uint8_t g_UDP_Commbuf[64];
+volatile uint8_t g_frameCheckFlag = 0;
+volatile uint8_t g_rxisr_frameSize = 0;
+	uint32_t uid1=0;
+	uint32_t uid2=0;
+	uint32_t uid3=0;
+
+uint32_t mcuid =0 ;
 
 
 /* USER CODE END PV */
@@ -101,7 +109,8 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	uint8_t udp_dataSize = 0;
-	int8_t strbuff[64];
+	uint8_t frameSize = 0;
+
 	
   /* USER CODE END 1 */
 
@@ -134,15 +143,12 @@ int main(void)
 	LL_SPI_Enable(SPI1);	//Enable SPI1
 	while( LL_SPI_IsEnabled(SPI1) == 0);	//Wait To Enable SPI
 	 
-	LL_USART_Enable(USART2);
+	LL_USART_EnableIT_RXNE(USART2);
 	while( LL_USART_IsEnabled(USART2) == 0); //Wait To Enable USART
 	
-	 
 	usart2_SendAnswer_DMA(strlen(waitForPHY),waitForPHY);
 	while(!(getPHYCFGR() & PHYCFGR_LNK_ON));   //Wait for PHY On
 	usart2_SendAnswer_DMA(strlen(PHYReady),PHYReady);
-	
-	
 	
 	setSn_RXBUF_SIZE(SOCKET_UDP,8);
 	setSn_TXBUF_SIZE(SOCKET_UDP,8);
@@ -151,13 +157,17 @@ int main(void)
 	setSn_CR(SOCKET_UDP,Sn_CR_OPEN);
 	while((getSn_SR(SOCKET_UDP) != 0x22));
 	
-	setGAR((memcpy(g_WIZNetworkSetting.GW,defaultgateway,GATEWAYSIZE)));
-	setSHAR(memcpy(g_WIZNetworkSetting.MAC,defaultmac,MACSIZE));
-	setSUBR(memcpy(g_WIZNetworkSetting.SUBNET,defaultsubnet,SUBNETSIZE));
-	setSIPR(memcpy(g_WIZNetworkSetting.IPadd,defaultip,IPSIZE));
-	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.DEST_IPADD,defaultdestip,IPSIZE));
+	setGAR((memcpy(g_WIZNetworkSetting.GW,defaultgateway,strlen(defaultgateway))));
+	setSHAR(memcpy(g_WIZNetworkSetting.MAC,defaultmac,strlen(defaultmac)));
+	setSUBR(memcpy(g_WIZNetworkSetting.SUBNET,defaultsubnet,strlen(defaultsubnet)));
+	setSIPR(memcpy(g_WIZNetworkSetting.IPadd,defaultip,strlen(defaultip)));
+	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.DEST_IPADD,defaultdestip,strlen(defaultdestip)));
 	setSn_PORT(SOCKET_UDP,DEFAULT_SOURCEPORT);
 	setSn_DPORT(SOCKET_UDP,DEFAULT_DESTPORT);
+	
+	uid1 = HAL_GetUIDw0();
+	uid2 = HAL_GetUIDw1();
+	uid3 = HAL_GetUIDw2();
 	
 	__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
 	HAL_TIM_Base_Start_IT(&htim14);
@@ -175,12 +185,18 @@ int main(void)
 	  udp_dataSize = WIZ_recvudp(g_udpData);
 	  if(g_UDPdataRDY ==1){
 		g_UDPdataRDY = 0;
-		usart2_SendAnswer_DMA(strlen(g_udpData),g_udpData);
-		while((g_usart2_DataRDY == 0) && (g_timeOutCounter < 10));
-		g_timeOutCounter = 0;
-		usart2_SendAnswer_DMA(strlen(g_usart2RxcommBuf),g_usart2RxcommBuf);
-		g_usart2_DataRDY = 0;
-		
+		frameSize = Frame_check(g_udpData,udp_dataSize);
+		if(g_frameCheckFlag == 1){
+			g_frameCheckFlag = 0;
+			usart2_SendAnswer_DMA(frameSize,g_UDP_Commbuf);
+			while((g_usart2_DataRDY == 0) && (g_timeOutCounter < 10));
+			g_timeOutCounter = 0;
+			if(g_usart2_DataRDY == 1){
+//				usart2_SendAnswer_DMA(g_rxisr_frameSize,g_usart2RxcommBuf);
+				WIZ_sendudp(g_usart2RxcommBuf,g_rxisr_frameSize);
+				g_usart2_DataRDY = 0;
+			}
+		}
 	  }
 		
   }
@@ -242,7 +258,7 @@ void HAL_UART_IRQHandlerCallBack(void){
 	uint8_t data;
 	static 	uint8_t usart2RxBuf[64];
 	static uint8_t usart2RxBuf_Counter=0;
-	static uint8_t rxisr_frameSize=0;
+//	static uint8_t rxisr_frameSize=0;
 	uint32_t isrflags   = LL_USART_ReadReg(USART2,ISR);
 	uint32_t errorflags = 0x00U;
 	uint8_t i=0;
@@ -262,9 +278,9 @@ void HAL_UART_IRQHandlerCallBack(void){
 		case Stop_Byte :
 			usart2RxBuf[usart2RxBuf_Counter] = data;
 			usart2RxBuf_Counter++;
-			rxisr_frameSize=usart2RxBuf_Counter;
+			g_rxisr_frameSize=usart2RxBuf_Counter;
 			usart2RxBuf_Counter=0;
-			for(i=0;i<rxisr_frameSize;i++){
+			for(i=0;i<g_rxisr_frameSize;i++){
 				g_usart2RxcommBuf[i]=usart2RxBuf[i];    
 			}
 			usart2RxBuf_Counter = 0;
@@ -293,10 +309,12 @@ void usart2_SendAnswer_DMA (uint8_t length, uint8_t* ptr){
 	LL_DMA_SetMemoryAddress(DMA1,LL_DMA_CHANNEL_1,(uint32_t) ptr); //memory address
 	LL_DMA_SetPeriphAddress(DMA1,LL_DMA_CHANNEL_1,LL_USART_DMA_GetRegAddr(USART2,LL_USART_DMA_REG_DATA_TRANSMIT));// USART TRANSSMIT register address
 	LL_DMA_SetDataLength(DMA1, LL_DMA_CHANNEL_1,length);		// set counter
-	LL_DMA_ClearFlag_GI2(DMA1);	//clearerr Channel 2 DMA Flags
+	LL_DMA_ClearFlag_GI1(DMA1);	//clearerr Channel 2 DMA Flags
 	LL_USART_ClearFlag_TC(USART2);     // Clear tc flag
-	LL_USART_EnableDMAReq_TX (USART2); // ENABLE USART DMA TRanssmit Req 
-	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);// enable channel 2
+	LL_USART_EnableDMAReq_TX (USART2); // ENABLE USART DMA TRanssmit Req
+	LL_DMA_EnableChannel(DMA1, LL_DMA_CHANNEL_1);// enable channel 1	
+
+	
 }
 
 /**
@@ -349,6 +367,71 @@ void HAL_TIM14_IRQHandlerCallBack(void){
 	__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
 	
 	
+}
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+uint8_t Frame_check (uint8_t *data,uint8_t len){
+
+uint8_t i=0;
+uint8_t UDP_Packet_size=0;
+static uint8_t UDP_Buff_Counter = 0; 
+    
+    for(i=0;i<len;i++){
+        if(data[i] == Start_Byte){
+            UDP_Buff_Counter=0;
+            g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
+            UDP_Buff_Counter++;
+        }
+        else if( (UDP_Buff_Counter > 0) && (data[i] != Stop_Byte) ){
+            g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
+            UDP_Buff_Counter++; 
+        }
+        else if((UDP_Buff_Counter > 0) && (data[i] == Stop_Byte)){
+            g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
+            UDP_Buff_Counter++;
+            UDP_Packet_size = UDP_Buff_Counter;
+            UDP_Buff_Counter = 0;
+			g_frameCheckFlag = 1;
+//            switch(g_UDP_Commbuf[Command_POS]){
+//                case Magic_Command:
+////                        Make_Magicframe();
+//                break;
+//                case Locate_Commnad:
+////                        Locate_device();
+//                break;
+//                default:
+//                        g_frameCheckFlag = 1;
+//                break;
+//                        
+//            }              
+        }                    
+    }
+    return UDP_Packet_size;           
+}
+
+
+void WIZ_sendudp (uint8_t *data, uint16_t len){
+	
+	uint16_t ptr = 0;
+	uint32_t addrsel = 0;
+	uint8_t ctrlSize = 0;
+
+	if(len == 0)  return;
+	ptr = getSn_TX_WR(SOCKET_UDP);
+	ctrlSize = getSn_TXBUF_SIZE(SOCKET_UDP);
+	//M20140501 : implict type casting -> explict type casting
+	//addrsel = (ptr << 8) + (WIZCHIP_TXBUF_BLOCK(sn) << 3);
+	addrsel = ((uint32_t)ptr << 8) + (WIZCHIP_TXBUF_BLOCK(SOCKET_UDP) << 3);
+	//
+	WIZCHIP_WRITE_BUF(addrsel,data, len);
+
+	ptr += len;
+	setSn_TX_WR(SOCKET_UDP,ptr);
+	setSn_CR(SOCKET_UDP,Sn_CR_SEND );
+//	while((getSn_IR(SOCKET_UDP) & Sn_IR_SENDOK ) && (getSn_IMR(SOCKET_UDP) & Sn_IR_SENDOK ));
+	setSn_IR(SOCKET_UDP , Sn_IR_SENDOK );
 }
 
 
