@@ -85,7 +85,7 @@ volatile uint8_t g_rxisr_frameSize = 0;
 	uint32_t uid2=0;
 	uint32_t uid3=0;
 
-uint32_t mcuid =0 ;
+volatile uint8_t g_flag =0 ;
 
 
 /* USER CODE END PV */
@@ -146,31 +146,20 @@ int main(void)
 	LL_USART_EnableIT_RXNE(USART2);
 	while( LL_USART_IsEnabled(USART2) == 0); //Wait To Enable USART
 	
+	/*Reset Wiznet */
+	HAL_GPIO_WritePin(ETH_RESET_GPIO_Port,ETH_RESET_Pin,GPIO_PIN_RESET);
+	HAL_Delay(1000);
+	HAL_GPIO_WritePin(ETH_RESET_GPIO_Port,ETH_RESET_Pin,GPIO_PIN_SET);
+	
 	usart2_SendAnswer_DMA(strlen(waitForPHY),waitForPHY);
 	while(!(getPHYCFGR() & PHYCFGR_LNK_ON));   //Wait for PHY On
 	usart2_SendAnswer_DMA(strlen(PHYReady),PHYReady);
 	
-	setSn_RXBUF_SIZE(SOCKET_UDP,8);
-	setSn_TXBUF_SIZE(SOCKET_UDP,8);
-	setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP
-	setSn_IR(SOCKET_UDP,0x1F);
-	setSn_CR(SOCKET_UDP,Sn_CR_OPEN);
-	while((getSn_SR(SOCKET_UDP) != 0x22));
-	
-	setGAR((memcpy(g_WIZNetworkSetting.GW,defaultgateway,strlen(defaultgateway))));
-	setSHAR(memcpy(g_WIZNetworkSetting.MAC,defaultmac,strlen(defaultmac)));
-	setSUBR(memcpy(g_WIZNetworkSetting.SUBNET,defaultsubnet,strlen(defaultsubnet)));
-	setSIPR(memcpy(g_WIZNetworkSetting.IPadd,defaultip,strlen(defaultip)));
-	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.DEST_IPADD,defaultdestip,strlen(defaultdestip)));
-	setSn_PORT(SOCKET_UDP,DEFAULT_SOURCEPORT);
-	setSn_DPORT(SOCKET_UDP,DEFAULT_DESTPORT);
+	WIZ_Config();
 	
 	uid1 = HAL_GetUIDw0();
 	uid2 = HAL_GetUIDw1();
 	uid3 = HAL_GetUIDw2();
-	
-	__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
-	HAL_TIM_Base_Start_IT(&htim14);
 
   /* USER CODE END 2 */
 
@@ -189,13 +178,16 @@ int main(void)
 		if(g_frameCheckFlag == 1){
 			g_frameCheckFlag = 0;
 			usart2_SendAnswer_DMA(frameSize,g_UDP_Commbuf);
+			__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
+			HAL_TIM_Base_Start_IT(&htim14);
 			while((g_usart2_DataRDY == 0) && (g_timeOutCounter < 10));
 			g_timeOutCounter = 0;
 			if(g_usart2_DataRDY == 1){
-//				usart2_SendAnswer_DMA(g_rxisr_frameSize,g_usart2RxcommBuf);
 				WIZ_sendudp(g_usart2RxcommBuf,g_rxisr_frameSize);
 				g_usart2_DataRDY = 0;
 			}
+			__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
+			HAL_TIM_Base_Stop_IT(&htim14);
 		}
 	  }
 		
@@ -261,7 +253,7 @@ void HAL_UART_IRQHandlerCallBack(void){
 //	static uint8_t rxisr_frameSize=0;
 	uint32_t isrflags   = LL_USART_ReadReg(USART2,ISR);
 	uint32_t errorflags = 0x00U;
-	uint8_t i=0;
+volatile	uint8_t i=0;
 
 	
   /* If no error occurs */
@@ -279,10 +271,7 @@ void HAL_UART_IRQHandlerCallBack(void){
 			usart2RxBuf[usart2RxBuf_Counter] = data;
 			usart2RxBuf_Counter++;
 			g_rxisr_frameSize=usart2RxBuf_Counter;
-			usart2RxBuf_Counter=0;
-			for(i=0;i<g_rxisr_frameSize;i++){
-				g_usart2RxcommBuf[i]=usart2RxBuf[i];    
-			}
+			memcpy(g_usart2RxcommBuf,usart2RxBuf,g_rxisr_frameSize);
 			usart2RxBuf_Counter = 0;
 			g_usart2_DataRDY = 1;
 		break;
@@ -331,27 +320,22 @@ uint8_t header[8];
 uint16_t datasize = 0;
 
 
-    if((getSn_IR(SOCKET_UDP) & Sn_IR_RECV ) && (getSn_IMR(SOCKET_UDP) & Sn_IR_RECV ) )
-	{
-        //LL_USART_TransmitData8(USART2,0xff);
+    if((getSn_IR(SOCKET_UDP) & Sn_IR_RECV ) != 0 )
+	{		
 		setSn_IR(SOCKET_UDP , Sn_IR_RECV );
-        while((getSn_IMR(SOCKET_UDP) & Sn_IR_RECV) == 0);
         ptr = getSn_RX_RD(SOCKET_UDP);
-        ctrlSize = getSn_RXBUF_SIZE(SOCKET_UDP);
+        ctrlSize = getSn_RX_RSR(SOCKET_UDP);
         addrsel = ((uint32_t)ptr << 8) + (WIZCHIP_RXBUF_BLOCK(SOCKET_UDP) << 3);
         WIZCHIP_READ_BUF(addrsel, header, header_size);
         ptr += header_size;
         datasize = (header[6] << 8);
         datasize += header[7];
-        addrsel = ((uint32_t)ptr << 8) + (WIZCHIP_RXBUF_BLOCK(SOCKET_UDP) << 3);
-        WIZCHIP_READ_BUF(addrsel, data, datasize); 
-        ptr += datasize;
-        setSn_RX_RD(SOCKET_UDP,ptr);
-        setSn_CR(SOCKET_UDP,Sn_CR_RECV );
-        
-        g_UDPdataRDY = 1;
-		
-//        return datasize;          
+		addrsel = ((uint32_t)ptr << 8) + (WIZCHIP_RXBUF_BLOCK(SOCKET_UDP) << 3);
+		WIZCHIP_READ_BUF(addrsel, data, datasize); 
+		ptr += datasize;
+		setSn_RX_RD(SOCKET_UDP,ptr);
+		setSn_CR(SOCKET_UDP,Sn_CR_RECV );
+		g_UDPdataRDY = 1;      
     }
 	return datasize;
 }
@@ -410,17 +394,25 @@ static uint8_t UDP_Buff_Counter = 0;
     }
     return UDP_Packet_size;           
 }
-
-
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
 void WIZ_sendudp (uint8_t *data, uint16_t len){
 	
 	uint16_t ptr = 0;
 	uint32_t addrsel = 0;
 	uint8_t ctrlSize = 0;
+	uint16_t freesize = 0;
 
 	if(len == 0)  return;
-	ptr = getSn_TX_WR(SOCKET_UDP);
-	ctrlSize = getSn_TXBUF_SIZE(SOCKET_UDP);
+	freesize = getSn_TX_FSR(SOCKET_UDP);
+	if(freesize < len){
+		g_flag = 100;
+		len = freesize;	
+	}
+	setSn_IR(SOCKET_UDP , Sn_IR_SENDOK );
+	ptr = getSn_TX_WR(SOCKET_UDP);	
 	//M20140501 : implict type casting -> explict type casting
 	//addrsel = (ptr << 8) + (WIZCHIP_TXBUF_BLOCK(sn) << 3);
 	addrsel = ((uint32_t)ptr << 8) + (WIZCHIP_TXBUF_BLOCK(SOCKET_UDP) << 3);
@@ -430,10 +422,48 @@ void WIZ_sendudp (uint8_t *data, uint16_t len){
 	ptr += len;
 	setSn_TX_WR(SOCKET_UDP,ptr);
 	setSn_CR(SOCKET_UDP,Sn_CR_SEND );
-//	while((getSn_IR(SOCKET_UDP) & Sn_IR_SENDOK ) && (getSn_IMR(SOCKET_UDP) & Sn_IR_SENDOK ));
+	while(!(getSn_IR(SOCKET_UDP) & (Sn_IR_SENDOK) )){
+		if((getSn_IR(SOCKET_UDP)) & (Sn_IR_TIMEOUT)){
+			setSn_IR(SOCKET_UDP,(Sn_IR_SENDOK | Sn_IR_TIMEOUT));
+			break;
+		}
+	}
 	setSn_IR(SOCKET_UDP , Sn_IR_SENDOK );
 }
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
 
+void WIZ_Config (void){
+	
+	setMR(0x00);	//Common Register INT set to null
+	setIMR(0x00);	//Common Register INT Mask set to null
+	setRTR(0x01f4);		//set Retry Time-value to 50ms
+	setRCR(0x0002);		//set Retry Count to 2 
+	setSn_RXBUF_SIZE(SOCKET_UDP,0x02);	//set RXbuff
+	setSn_TXBUF_SIZE(SOCKET_UDP,0x02);	//set TXbuff
+	setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP
+	setSn_CR(SOCKET_UDP,Sn_CR_OPEN);	//Open Socket 0
+	while((getSn_SR(SOCKET_UDP) != 0x22));	//wait to socket open	
+	/*
+	1)Gateway Address
+	2)MAC Address
+	3)Subnet Mak
+	4)Wiznet IP Address
+	5)Destination IP Address
+	6)Wiznet PORT
+	7)Destination Port
+	*/	
+	setGAR((memcpy(g_WIZNetworkSetting.GW,defaultgateway,strlen(defaultgateway))));	
+	setSHAR(memcpy(g_WIZNetworkSetting.MAC,defaultmac,strlen(defaultmac)));
+	setSUBR(memcpy(g_WIZNetworkSetting.SUBNET,defaultsubnet,strlen(defaultsubnet)));
+	setSIPR(memcpy(g_WIZNetworkSetting.IPadd,defaultip,strlen(defaultip)));
+	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.DEST_IPADD,defaultdestip,strlen(defaultdestip)));
+	setSn_PORT(SOCKET_UDP,DEFAULT_SOURCEPORT);
+	setSn_DPORT(SOCKET_UDP,DEFAULT_DESTPORT);
+	
+}
 
 /* USER CODE END 4 */
 

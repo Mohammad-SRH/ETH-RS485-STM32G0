@@ -125,7 +125,7 @@
         <SetRegEntry>
           <Number>0</Number>
           <Key>DLGTARM</Key>
-          <Name>(1010=-1,-1,-1,-1,0)(1007=105,137,312,358,0)(1008=90,121,466,357,0)(1009=120,153,364,299,0)</Name>
+          <Name>(1010=-1,-1,-1,-1,0)(1007=105,137,312,358,0)(1008=90,121,466,357,0)(1009=120,153,364,299,1)</Name>
         </SetRegEntry>
         <SetRegEntry>
           <Number>0</Number>
@@ -153,34 +153,29 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>uid1</ItemText>
+          <ItemText>g_flag</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>uid2</ItemText>
+          <ItemText>g_usart2RxcommBuf</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>uid3</ItemText>
+          <ItemText>g_UDP_Commbuf</ItemText>
         </Ww>
         <Ww>
           <count>3</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_usart2RxcommBuf</ItemText>
-        </Ww>
-        <Ww>
-          <count>4</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>g_UDPdataRDY</ItemText>
+          <ItemText>g_frameCheckFlag</ItemText>
         </Ww>
       </WatchWindow1>
       <MemoryWindow1>
         <Mm>
           <WinNumber>1</WinNumber>
-          <SubType>0</SubType>
-          <ItemText>0x1FFF7590</ItemText>
+          <SubType>256</SubType>
+          <ItemText>\\ETH_RS485_STM32G0\../Core/Src/main.c\main\frameSize</ItemText>
           <AccSizeX>1</AccSizeX>
         </Mm>
       </MemoryWindow1>
