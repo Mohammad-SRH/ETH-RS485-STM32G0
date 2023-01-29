@@ -153,17 +153,17 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_flag</ItemText>
+          <ItemText>uid1</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_usart2RxcommBuf</ItemText>
+          <ItemText>uid2</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_UDP_Commbuf</ItemText>
+          <ItemText>uid3</ItemText>
         </Ww>
         <Ww>
           <count>3</count>

@@ -75,6 +75,7 @@ uint8_t Frame_check (uint8_t *data,uint8_t len);
 uint8_t WIZ_recvudp (uint8_t *data );
 void WIZ_sendudp (uint8_t *data, uint16_t len);
 void WIZ_Config (void);
+void WIZ_linkCheck (void);
 
 /* USER CODE END EFP */
 
@@ -109,10 +110,9 @@ void WIZ_Config (void);
 
 /* Network defines -----------------------------------------------------------*/
 
-#define IPSIZE				4
-#define SUBNETSIZE			4
-#define	GATEWAYSIZE			4
-#define MACSIZE				6
+#define STATIC_FIRST_MAC	0x53
+#define STATIC_SECOND_MAC	0x52
+#define STATIC_THIRD_MAC	0x48 
 #define DEFAULT_SOURCEPORT	0xAFC8//45000
 #define	DEFAULT_DESTPORT	0xABE1//44001
 

@@ -48,11 +48,11 @@ typedef struct {
 
 
 const uint8_t 	defaultgateway[]={192,168,1,1};
-const uint8_t	defaultmac[]={0x22,0x33,0x44,0x55,0x66,0x77};
+//const uint8_t	defaultmac[]={0x22,0x33,0x44,0x55,0x66,0x77};
 const uint8_t	defaultsubnet[]={255,255,255,0};
 const uint8_t	defaultip[]={192,168,1,200};
 const uint8_t	defaultdestip[]={192,168,1,255};
-const int8_t    waitForPHY[]={"Waiting For PHY...\r\n"};
+const int8_t    waitForPHY[]={"Waiting For PHY On...\r\n"};
 const int8_t	PHYReady[]={"PHY On.\r\n"};
 
 /* USER CODE END PTD */
@@ -81,10 +81,6 @@ volatile uint8_t g_timeOutCounter = 0;
 volatile uint8_t g_UDP_Commbuf[64];
 volatile uint8_t g_frameCheckFlag = 0;
 volatile uint8_t g_rxisr_frameSize = 0;
-	uint32_t uid1=0;
-	uint32_t uid2=0;
-	uint32_t uid3=0;
-
 volatile uint8_t g_flag =0 ;
 
 
@@ -157,9 +153,7 @@ int main(void)
 	
 	WIZ_Config();
 	
-	uid1 = HAL_GetUIDw0();
-	uid2 = HAL_GetUIDw1();
-	uid3 = HAL_GetUIDw2();
+
 
   /* USER CODE END 2 */
 
@@ -171,6 +165,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  WIZ_linkCheck();
 	  udp_dataSize = WIZ_recvudp(g_udpData);
 	  if(g_UDPdataRDY ==1){
 		g_UDPdataRDY = 0;
@@ -437,6 +432,25 @@ void WIZ_sendudp (uint8_t *data, uint16_t len){
 
 void WIZ_Config (void){
 	
+	uint32_t UID[3];
+	uint32_t buff = 0;
+	uint8_t	defaultmac[6];
+	
+	UID[0] = HAL_GetUIDw0();
+	UID[1] = HAL_GetUIDw1();
+	UID[2] = HAL_GetUIDw2();
+	
+	buff = (UID[0] ^ UID[1]);
+	buff = (buff ^ UID[2]);
+	buff &= (0xffffff);
+	
+	defaultmac[0]= STATIC_FIRST_MAC;
+	defaultmac[1]= STATIC_SECOND_MAC;
+	defaultmac[2]= STATIC_THIRD_MAC;
+	defaultmac[3]= (buff >> 16);
+	defaultmac[4]= (buff >> 8);
+	defaultmac[5]= (buff);
+	
 	setMR(0x00);	//Common Register INT set to null
 	setIMR(0x00);	//Common Register INT Mask set to null
 	setRTR(0x01f4);		//set Retry Time-value to 50ms
@@ -463,6 +477,25 @@ void WIZ_Config (void){
 	setSn_PORT(SOCKET_UDP,DEFAULT_SOURCEPORT);
 	setSn_DPORT(SOCKET_UDP,DEFAULT_DESTPORT);
 	
+}
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void WIZ_linkCheck (void){
+ 
+	if((getPHYCFGR() & PHYCFGR_LNK_ON ) == 0){		
+		usart2_SendAnswer_DMA(strlen(waitForPHY),waitForPHY);
+        while ((getPHYCFGR() & PHYCFGR_LNK_ON) == 0);   //Wait for PHY On
+		/*Reset Wiznet */
+		HAL_GPIO_WritePin(ETH_RESET_GPIO_Port,ETH_RESET_Pin,GPIO_PIN_RESET);
+		HAL_Delay(1000);
+		HAL_GPIO_WritePin(ETH_RESET_GPIO_Port,ETH_RESET_Pin,GPIO_PIN_SET);
+        while ((getPHYCFGR() & PHYCFGR_LNK_ON) == 0);
+		usart2_SendAnswer_DMA(strlen(PHYReady),PHYReady);
+		WIZ_Config();
+    }
+
 }
 
 /* USER CODE END 4 */
