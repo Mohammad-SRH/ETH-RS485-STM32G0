@@ -406,6 +406,11 @@
               <FilePath>..\Core\Src\wizchip_conf.c</FilePath>
             </File>
             <File>
+              <FileName>MemoryI2C.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\MemoryI2C.c</FilePath>
+            </File>
+            <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/main.c</FilePath>

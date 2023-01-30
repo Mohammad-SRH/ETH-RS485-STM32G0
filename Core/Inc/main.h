@@ -74,8 +74,10 @@ void HAL_TIM14_IRQHandlerCallBack (void);
 uint8_t Frame_check (uint8_t *data,uint8_t len);
 uint8_t WIZ_recvudp (uint8_t *data );
 void WIZ_sendudp (uint8_t *data, uint16_t len);
-void WIZ_Config (void);
+void WIZ_defaultNetworkConfig (void);
 void WIZ_linkCheck (void);
+void WIZ_basicConfig (void);
+void WIZ_networkConfig (void);
 
 /* USER CODE END EFP */
 
@@ -116,9 +118,22 @@ void WIZ_linkCheck (void);
 #define DEFAULT_SOURCEPORT	0xAFC8//45000
 #define	DEFAULT_DESTPORT	0xABE1//44001
 
-/* MCU defines -----------------------------------------------------------*/
 
-#define MCU_ID_BASE				0x40015800
+/* Memory defines -----------------------------------------------------------*/
+
+#define MANUFACTURE_DATA_PAGE			0
+#define RESERVE_PAGE2					1
+#define IP_ADDRESS_PAGE					2
+#define MAC_ADDRESS_PAGE				3
+#define SUBNET_MASK_PAGE				4
+#define DESTINATION_IP_ADDRESS_PAGE		7
+#define GATEWAY_IP_ADDRESS_PAGE			8
+
+#define PROGRAM_BYTE					0
+#define SOFTWERE_VERSION_BYTE			1	
+#define SOURCE_PORT_BYTE				40
+#define DESTINATION_PORT_BYTE			48
+
 
 
 /* USER CODE END Private defines */
