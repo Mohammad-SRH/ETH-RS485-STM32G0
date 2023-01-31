@@ -41,25 +41,44 @@ void memWriteHalfWord(uint8_t halfWordAdd, uint16_t data){
 	retByteArray[1] = data>>8;
 	HAL_I2C_Mem_Write(&hi2c1,MEM_DEVICE_ADD,halfWordAdd,I2C_MEMADD_SIZE_8BIT,retByteArray,2,6);
 	HAL_Delay(5);
-
-
 }
 
 
 void memReadPage (uint8_t pageAdd , uint8_t *retByteArray){
 	
 	uint8_t Address = 0;
+	uint8_t dataSize = 0;
+	dataSize = (sizeof(retByteArray));
 	Address = (pageAdd * 8);
-	HAL_I2C_Mem_Read(&hi2c1,MEM_DEVICE_ADD,Address,I2C_MEMADD_SIZE_8BIT,retByteArray,7,2);
+	
+	HAL_I2C_Mem_Read(&hi2c1,MEM_DEVICE_ADD,Address,I2C_MEMADD_SIZE_8BIT,retByteArray,dataSize,2);
 
 }
 
 void memWritePage (uint8_t pageAdd , uint8_t *data){
 	
 	uint8_t Address = 0;
+	uint8_t dataSize = 0;
+	dataSize = (sizeof(*data));
 	Address = (pageAdd * 8);
-	HAL_I2C_Mem_Write(&hi2c1,MEM_DEVICE_ADD,Address,I2C_MEMADD_SIZE_8BIT,data,7,6);
+	HAL_I2C_Mem_Write(&hi2c1,MEM_DEVICE_ADD,Address,I2C_MEMADD_SIZE_8BIT,data,dataSize,6);
 	HAL_Delay(5);
 	
 }
+
+void memReadArray (uint8_t pageAdd , uint8_t *retByteArray , uint8_t NumberofByte){
+	
+	uint8_t Address = 0;
+	Address = (pageAdd * 8);
+	HAL_I2C_Mem_Read(&hi2c1,MEM_DEVICE_ADD,Address,I2C_MEMADD_SIZE_8BIT,retByteArray,NumberofByte,6);	
+}
+
+void memWriteArray (uint8_t pageAdd , uint8_t *data , uint8_t NumberofByte){
+	
+	uint8_t Address = 0;
+	Address = (pageAdd * 8);
+	HAL_I2C_Mem_Write(&hi2c1,MEM_DEVICE_ADD,Address,I2C_MEMADD_SIZE_8BIT,data,NumberofByte,6);
+	
+}
+
 

@@ -38,13 +38,17 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 typedef struct {
-	uint8_t GW[4];
-	uint8_t MAC[6];
-	uint8_t SUBNET[4];
-	uint8_t IPadd[4];
-	uint8_t DEST_IPADD[4];
-	uint16_t SOURCE_PORT;
-	uint16_t DEST_PORT;
+	uint8_t gateway[4];
+	uint8_t mac[6];
+	uint8_t subnet[4];
+	uint8_t ipadd[4];
+	uint8_t socket0_Destipadd[4];
+	uint8_t socket1_Destipadd[4];
+	uint16_t socket0_SourcePort;
+	uint16_t socket0_DestPort;
+	uint16_t socket1_SourcePort;
+	uint16_t socket1_DestPort;
+	
 }WIZNetworksetting_t;
 
 
@@ -83,10 +87,7 @@ volatile uint8_t g_UDP_Commbuf[64];
 volatile uint8_t g_frameCheckFlag = 0;
 volatile uint8_t g_rxisr_frameSize = 0;
 volatile uint8_t g_flag =0 ;
-
-		uint8_t g_temp[8];
-		uint16_t temp = 0;
-		
+		uint8_t g_temp[6];
 
 /* USER CODE END PV */
 
@@ -160,19 +161,26 @@ int main(void)
 	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_RESET);
 	HAL_Delay(5);
 	
-	if(memReadByte(PROGRAM_BYTE) != 0xff){	//Read Last Config From Memory
-		memReadPage(IP_ADDRESS_PAGE,g_WIZNetworkSetting.IPadd);
-		memReadPage(MAC_ADDRESS_PAGE,g_WIZNetworkSetting.MAC);
-		memReadPage(SUBNET_MASK_PAGE,g_WIZNetworkSetting.SUBNET);
-		memReadPage(DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.DEST_IPADD);
-		memReadPage(GATEWAY_IP_ADDRESS_PAGE,g_WIZNetworkSetting.GW);
-		g_WIZNetworkSetting.SOURCE_PORT = memReadHalfWord(40);
-		g_WIZNetworkSetting.DEST_PORT = memReadHalfWord(48);		
+	if(memReadByte(MANUFACTURE_DADA_PROGRAM_BYTE) == 1){	//Read Last Config From Memory
+		memReadArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,sizeof(g_WIZNetworkSetting.ipadd));
+		memReadArray(MAC_ADDRESS_PAGE,g_WIZNetworkSetting.mac,sizeof(g_WIZNetworkSetting.mac));
+		memReadArray(SUBNET_MASK_PAGE,g_WIZNetworkSetting.subnet,sizeof(g_WIZNetworkSetting.subnet));
+		memReadArray(GATEWAY_IP_ADDRESS_PAGE,g_WIZNetworkSetting.gateway,sizeof(g_WIZNetworkSetting.gateway));
+		//Socket0 Read Setting
+		memReadArray(SOCKET0_DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.socket0_Destipadd,sizeof(g_WIZNetworkSetting.socket0_Destipadd));
+		g_WIZNetworkSetting.socket0_SourcePort = memReadHalfWord(SOCKET0_SOURCE_PORT_BYTE);
+		g_WIZNetworkSetting.socket0_DestPort = memReadHalfWord(SOCKET0_DESTINATION_PORT_BYTE);	
+		//Socket1 Read Setting
+		memReadArray(SOCKET1_DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.socket1_Destipadd,sizeof(g_WIZNetworkSetting.socket1_Destipadd));
+		g_WIZNetworkSetting.socket1_SourcePort = memReadHalfWord(SOCKET1_SOURCE_PORT_BYTE);
+		g_WIZNetworkSetting.socket1_DestPort = memReadHalfWord(SOCKET1_DESTINATION_PORT_BYTE);	
+		
 		WIZ_networkConfig();
 	}
 	else{
 		WIZ_defaultNetworkConfig();
 	}
+	
 	HAL_Delay(5);	
 	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_SET);
 
@@ -478,26 +486,40 @@ void WIZ_defaultNetworkConfig (void){
 	2)MAC Address
 	3)Subnet Mak
 	4)Wiznet IP Address
-	5)Destination IP Address
-	6)Wiznet PORT
-	7)Destination Port
+	5)Socke0 Destination IP Address
+	6)Socke0 Source PORT
+	7)Socke0 Destination Port
+	8)Socke1 Destination IP Address
+	9)Socke1 Source PORT
+	10)Socke1 Destination Port
 	*/	
-	setGAR((memcpy(g_WIZNetworkSetting.GW,defaultgateway,strlen(defaultgateway))));	
-	setSHAR(memcpy(g_WIZNetworkSetting.MAC,defaultmac,strlen(defaultmac)));
-	setSUBR(memcpy(g_WIZNetworkSetting.SUBNET,defaultsubnet,strlen(defaultsubnet)));
-	setSIPR(memcpy(g_WIZNetworkSetting.IPadd,defaultip,strlen(defaultip)));
-	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.DEST_IPADD,defaultdestip,strlen(defaultdestip)));
-	setSn_PORT(SOCKET_UDP,DEFAULT_SOURCEPORT);
-	setSn_DPORT(SOCKET_UDP,DEFAULT_DESTPORT);
+	setGAR((memcpy(g_WIZNetworkSetting.gateway,defaultgateway,strlen(defaultgateway))));	
+	setSHAR(memcpy(g_WIZNetworkSetting.mac,defaultmac,strlen(defaultmac)));
+	setSUBR(memcpy(g_WIZNetworkSetting.subnet,defaultsubnet,strlen(defaultsubnet)));
+	setSIPR(memcpy(g_WIZNetworkSetting.ipadd,defaultip,strlen(defaultip)));
+	//Config Socket0 
+	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.socket0_Destipadd,defaultdestip,strlen(defaultdestip)));
+	setSn_PORT(SOCKET_UDP,SOCKET0_DEFAULT_SOURCEPORT);
+	setSn_DPORT(SOCKET_UDP,SOCKET0_DEFAULT_DESTPORT);
+	//Config Socket1 
+	setSn_DIPR(SOCKET_CONFIG,memcpy(g_WIZNetworkSetting.socket1_Destipadd,defaultdestip,strlen(defaultdestip)));
+	setSn_PORT(SOCKET_CONFIG,SOCKET1_DEFAULT_SOURCEPORT);
+	setSn_DPORT(SOCKET_CONFIG,SOCKET1_DEFAULT_DESTPORT);
 	
-	memWritePage(IP_ADDRESS_PAGE,g_WIZNetworkSetting.IPadd);
-	memWritePage(MAC_ADDRESS_PAGE,g_WIZNetworkSetting.MAC);
-	memWritePage(SUBNET_MASK_PAGE,g_WIZNetworkSetting.SUBNET);
-	memWritePage(DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.DEST_IPADD);
-	memWritePage(GATEWAY_IP_ADDRESS_PAGE,g_WIZNetworkSetting.GW);
-	memWriteHalfWord(SOURCE_PORT_BYTE,DEFAULT_SOURCEPORT);
-	memWriteHalfWord(DESTINATION_PORT_BYTE,DEFAULT_DESTPORT);
-	memWriteByte(PROGRAM_BYTE,1);
+	memWriteArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,sizeof(g_WIZNetworkSetting.ipadd));
+	memWriteArray(MAC_ADDRESS_PAGE,g_WIZNetworkSetting.mac,sizeof(g_WIZNetworkSetting.mac));
+	memWriteArray(SUBNET_MASK_PAGE,g_WIZNetworkSetting.subnet,sizeof(g_WIZNetworkSetting.subnet));
+	memWriteArray(GATEWAY_IP_ADDRESS_PAGE,g_WIZNetworkSetting.gateway,sizeof(g_WIZNetworkSetting.gateway));
+	//Save Socket0 Info
+	memWriteArray(SOCKET0_DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.socket0_Destipadd,sizeof(g_WIZNetworkSetting.socket0_Destipadd));
+	memWriteHalfWord(SOCKET0_SOURCE_PORT_BYTE,SOCKET0_DEFAULT_SOURCEPORT);
+	memWriteHalfWord(SOCKET0_DESTINATION_PORT_BYTE,SOCKET0_DEFAULT_DESTPORT);
+	//Save Socket1 Info
+	memWriteArray(SOCKET1_DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.socket1_Destipadd,sizeof(g_WIZNetworkSetting.socket1_Destipadd));
+	memWriteHalfWord(SOCKET1_SOURCE_PORT_BYTE,SOCKET1_DEFAULT_SOURCEPORT);
+	memWriteHalfWord(SOCKET1_DESTINATION_PORT_BYTE,SOCKET1_DEFAULT_DESTPORT);
+	
+	memWriteByte(MANUFACTURE_DADA_PROGRAM_BYTE,1);
 	
 }
 /**
@@ -529,25 +551,36 @@ void WIZ_basicConfig (void){
 	setIMR(0x00);	//Common Register INT Mask set to null
 	setRTR(0x01f4);		//set Retry Time-value to 50ms
 	setRCR(0x0002);		//set Retry Count to 2 
-	setSn_RXBUF_SIZE(SOCKET_UDP,0x02);	//set RXbuff
-	setSn_TXBUF_SIZE(SOCKET_UDP,0x02);	//set TXbuff
-	setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP
+	setSn_RXBUF_SIZE(SOCKET_UDP,0x02);	//set Socket0 RXbuff
+	setSn_TXBUF_SIZE(SOCKET_UDP,0x02);	//set Socket0 TXbuff
+	setSn_RXBUF_SIZE(SOCKET_CONFIG,0x02);	//set Socket1 RXbuff
+	setSn_TXBUF_SIZE(SOCKET_CONFIG,0x02);	//set Socket1 TXbuff
+	setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP Socket 0
 	setSn_CR(SOCKET_UDP,Sn_CR_OPEN);	//Open Socket 0
-	while((getSn_SR(SOCKET_UDP) != 0x22));	//wait to socket open	
+	while((getSn_SR(SOCKET_UDP) != 0x22));	//wait to socket0 open	
+	setSn_MR(SOCKET_CONFIG,Sn_MR_UDP);  //Set UDP Socket 1
+	setSn_CR(SOCKET_CONFIG,Sn_CR_OPEN);	//Open Socket 1
+	while((getSn_SR(SOCKET_CONFIG) != 0x22));	//wait to socket1 open
+	
 }
 /**
   * @brief System Clock Configuration
   * @retval None
   */
 void WIZ_networkConfig (void){
-	
-	setGAR(g_WIZNetworkSetting.GW);	
-	setSHAR(g_WIZNetworkSetting.MAC);
-	setSUBR(g_WIZNetworkSetting.SUBNET);
-	setSIPR(g_WIZNetworkSetting.IPadd);
-	setSn_DIPR(SOCKET_UDP,g_WIZNetworkSetting.DEST_IPADD);
-	setSn_PORT(SOCKET_UDP,g_WIZNetworkSetting.SOURCE_PORT);
-	setSn_DPORT(SOCKET_UDP,g_WIZNetworkSetting.DEST_PORT);
+	//Config Wiznet Network Info
+	setGAR(g_WIZNetworkSetting.gateway);	
+	setSHAR(g_WIZNetworkSetting.mac);
+	setSUBR(g_WIZNetworkSetting.subnet);
+	setSIPR(g_WIZNetworkSetting.ipadd);
+	//Config SOCKET0 Info
+	setSn_DIPR(SOCKET_UDP,g_WIZNetworkSetting.socket0_Destipadd);
+	setSn_PORT(SOCKET_UDP,g_WIZNetworkSetting.socket0_SourcePort);
+	setSn_DPORT(SOCKET_UDP,g_WIZNetworkSetting.socket0_DestPort);
+	//Config SOCKET1 Info
+	setSn_DIPR(SOCKET_CONFIG,g_WIZNetworkSetting.socket1_Destipadd);
+	setSn_PORT(SOCKET_CONFIG,g_WIZNetworkSetting.socket1_SourcePort);
+	setSn_DPORT(SOCKET_CONFIG,g_WIZNetworkSetting.socket1_DestPort);
 	
 }
 /* USER CODE END 4 */

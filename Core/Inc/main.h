@@ -108,31 +108,69 @@ void WIZ_networkConfig (void);
 /* Wiznet defines -----------------------------------------------------------*/
 
 #define SOCKET_UDP          0
-#define SOCKET_TCP          1  
+#define SOCKET_CONFIG		1
 
 /* Network defines -----------------------------------------------------------*/
 
 #define STATIC_FIRST_MAC	0x53
 #define STATIC_SECOND_MAC	0x52
 #define STATIC_THIRD_MAC	0x48 
-#define DEFAULT_SOURCEPORT	0xAFC8//45000
-#define	DEFAULT_DESTPORT	0xABE1//44001
-
+#define SOCKET0_DEFAULT_SOURCEPORT	0xAFC8//45000
+#define	SOCKET0_DEFAULT_DESTPORT	0xABE1//44001
+#define SOCKET1_DEFAULT_SOURCEPORT	0x1357//4951
+#define	SOCKET1_DEFAULT_DESTPORT	0x3579//13689
 
 /* Memory defines -----------------------------------------------------------*/
 
-#define MANUFACTURE_DATA_PAGE			0
-#define RESERVE_PAGE2					1
-#define IP_ADDRESS_PAGE					2
-#define MAC_ADDRESS_PAGE				3
-#define SUBNET_MASK_PAGE				4
-#define DESTINATION_IP_ADDRESS_PAGE		7
-#define GATEWAY_IP_ADDRESS_PAGE			8
+/*
+|-------------------------------------|
+|	PAGE0:MANUFATURE DATA 0			  |
+|-------------------------------------|
+|	PAGE1:MANUFATURE DATA 1			  |
+|-------------------------------------|
+|	PAGE2:IP ADDRESS				  |
+|-------------------------------------|
+|	PAGE3:MAC ADDRESS				  |
+|-------------------------------------|
+|	PAGE4:SUBNET MASK				  |
+|-------------------------------------|
+|	PAGE5:SOCKET0 DESTINATION IP	  |
+|-------------------------------------|
+|	PAGE6:SOCKET1 DESTINATION IP	  |
+|-------------------------------------|
+|	PAGE7:GATEWAY					  |
+|-------------------------------------|
+|	PAGE8:SOCKET0 SOURCE PORT		  |
+|-------------------------------------|
+|	PAGE9:SOCKET0 DESTINATION PORT	  |
+|-------------------------------------|
+|	PAGE10:SOCKET1 SOURCE PORT		  |
+|-------------------------------------|
+|	PAGE11:SOCKET1 DESTINATION PORT	  |
+|-------------------------------------|
 
-#define PROGRAM_BYTE					0
-#define SOFTWERE_VERSION_BYTE			1	
-#define SOURCE_PORT_BYTE				40
-#define DESTINATION_PORT_BYTE			48
+*/
+
+#define MANUFACTURE_DATA0_PAGE					0
+#define MANUFACTURE_DATA1_PAGE					1
+#define IP_ADDRESS_PAGE							2
+#define MAC_ADDRESS_PAGE						3
+#define SUBNET_MASK_PAGE						4
+#define SOCKET0_DESTINATION_IP_ADDRESS_PAGE		5
+#define SOCKET1_DESTINATION_IP_ADDRESS_PAGE		6
+#define GATEWAY_IP_ADDRESS_PAGE					7
+#define SOCKET0_SOURCE_PORT_PAGE				8
+#define SOCKET0_DESTINATION_PORT_PAGE			9
+#define SOCKET1_SOURCE_PORT_PAGE				10
+#define SOCKET1_DESTINATION_PORT_PAGE			11
+
+
+#define MANUFACTURE_DADA_PROGRAM_BYTE	(MANUFACTURE_DATA0_PAGE*8)
+#define MANUFACTURE_DADA__VERSION_BYTE	((MANUFACTURE_DATA0_PAGE*8)+1)	
+#define SOCKET0_SOURCE_PORT_BYTE		(SOCKET0_SOURCE_PORT_PAGE*8)
+#define SOCKET0_DESTINATION_PORT_BYTE	(SOCKET0_DESTINATION_PORT_PAGE*8)
+#define SOCKET1_SOURCE_PORT_BYTE		(SOCKET1_SOURCE_PORT_PAGE*8)
+#define SOCKET1_DESTINATION_PORT_BYTE	(SOCKET1_DESTINATION_PORT_PAGE*8)
 
 
 
