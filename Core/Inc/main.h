@@ -73,7 +73,7 @@ void usart2_SendAnswer_DMA(uint8_t length, uint8_t *ptr);
 void HAL_TIM14_IRQHandlerCallBack (void);
 uint8_t Frame_check (uint8_t *data,uint8_t len);
 uint8_t WIZ_recvudp (uint8_t *data );
-void WIZ_sendudp (uint8_t *data, uint16_t len);
+void WIZ_sendudp (uint8_t sn,uint8_t *data, uint16_t len);
 void WIZ_defaultNetworkConfig (void);
 void WIZ_linkCheck (void);
 void WIZ_basicConfig (void);
@@ -117,8 +117,8 @@ void WIZ_networkConfig (void);
 #define STATIC_THIRD_MAC	0x48 
 #define SOCKET0_DEFAULT_SOURCEPORT	0xAFC8//45000
 #define	SOCKET0_DEFAULT_DESTPORT	0xABE1//44001
-#define SOCKET1_DEFAULT_SOURCEPORT	0x1357//4951
-#define	SOCKET1_DEFAULT_DESTPORT	0x3579//13689
+#define SOCKET1_DEFAULT_SOURCEPORT	0xB02C//45100
+#define	SOCKET1_DEFAULT_DESTPORT	0xB090//45200
 
 /* Memory defines -----------------------------------------------------------*/
 

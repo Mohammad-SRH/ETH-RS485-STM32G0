@@ -41,7 +41,7 @@ void memWriteHalfWord(uint8_t halfWordAdd, uint16_t data);
 void memReadPage (uint8_t pageAdd , uint8_t *retByteArray);
 void memWritePage (uint8_t pageAdd , uint8_t *data);
 
-void memWriteArray (uint8_t pageAdd , uint8_t *data , uint8_t NumberofByte);
-void memReadArray (uint8_t pageAdd , uint8_t *retByteArray , uint8_t NumberofByte);
+void memWriteArray (uint8_t pageAdd , uint8_t *data , uint8_t len);
+void memReadArray (uint8_t pageAdd , uint8_t *retByteArray , uint8_t len);
 
 #endif /*MEMORY_H */

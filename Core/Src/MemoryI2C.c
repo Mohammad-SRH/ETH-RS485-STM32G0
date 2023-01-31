@@ -66,18 +66,27 @@ void memWritePage (uint8_t pageAdd , uint8_t *data){
 	
 }
 
-void memReadArray (uint8_t pageAdd , uint8_t *retByteArray , uint8_t NumberofByte){
+void memReadArray (uint8_t pageAdd , uint8_t *retByteArray , uint8_t len){
 	
+	uint8_t i =0;
 	uint8_t Address = 0;
 	Address = (pageAdd * 8);
-	HAL_I2C_Mem_Read(&hi2c1,MEM_DEVICE_ADD,Address,I2C_MEMADD_SIZE_8BIT,retByteArray,NumberofByte,6);	
+	for(i=0;i<len;i++){
+		retByteArray[i] = memReadByte(Address);
+		Address++;
+	}
+
 }
 
-void memWriteArray (uint8_t pageAdd , uint8_t *data , uint8_t NumberofByte){
+void memWriteArray (uint8_t pageAdd , uint8_t *data , uint8_t len){
 	
+	uint8_t i =0;
 	uint8_t Address = 0;
 	Address = (pageAdd * 8);
-	HAL_I2C_Mem_Write(&hi2c1,MEM_DEVICE_ADD,Address,I2C_MEMADD_SIZE_8BIT,data,NumberofByte,6);
+	for(i=0;i<len;i++){
+		memWriteByte(Address,data[i]);
+		Address++;
+	}
 	
 }
 
