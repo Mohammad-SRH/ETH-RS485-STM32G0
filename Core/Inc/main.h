@@ -78,6 +78,7 @@ void WIZ_defaultNetworkConfig (void);
 void WIZ_linkCheck (void);
 void WIZ_basicConfig (void);
 void WIZ_networkConfig (void);
+uint8_t WIZ_calculateConfig (uint8_t *data);
 
 /* USER CODE END EFP */
 
@@ -109,6 +110,11 @@ void WIZ_networkConfig (void);
 
 #define SOCKET_UDP          0
 #define SOCKET_CONFIG		1
+#define UDP_DATA_RDY		1
+#define UDP_CONFIG_RDY		2
+#define USART_DATA_RDY		3
+#define FRAME_CHECK_OK		4
+
 
 /* Network defines -----------------------------------------------------------*/
 

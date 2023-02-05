@@ -53,13 +53,14 @@ typedef struct {
 
 
 const uint8_t 	defaultgateway[]={192,168,1,1};
-//const uint8_t	defaultmac[]={0x22,0x33,0x44,0x55,0x66,0x77};
 const uint8_t	defaultsubnet[]={255,255,255,0};
 const uint8_t	defaultip[]={192,168,1,200};
 const uint8_t	defaultdestip[]={192,168,1,255};
 const int8_t    waitForPHY[]={"Waiting For PHY On...\r\n"};
 const int8_t	PHYReady[]={"PHY On.\r\n"};
-const int8_t	config[]={"config Send To Server.\r\n"};
+const int8_t	configStr[]={"&config&"};
+const int8_t	locateStr[]={"&locate&"};
+const int8_t	settingStr[]={"&setting&"};
 
 /* USER CODE END PTD */
 
@@ -79,17 +80,13 @@ const int8_t	config[]={"config Send To Server.\r\n"};
 /* Global variables ---------------------------------------------------------*/
 WIZNetworksetting_t g_WIZNetworkSetting;
 volatile uint8_t g_usart2RxcommBuf[64];
-volatile uint8_t g_usart2_DataRDY = 0;
-volatile uint8_t g_UDPdataRDY = 0;
-volatile uint8_t g_UDPconfigRDY = 0;
 volatile uint8_t g_usart2_DmaData[64];
 volatile uint8_t g_udpData[64];
 volatile uint8_t g_timeOutCounter = 0;
 volatile uint8_t g_UDP_Commbuf[64];
-volatile uint8_t g_frameCheckFlag = 0;
 volatile uint8_t g_rxisr_frameSize = 0;
 volatile uint8_t g_flag =0 ;
-		uint8_t g_temp[6];
+
 
 /* USER CODE END PV */
 
@@ -113,6 +110,9 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	uint8_t udp_dataSize = 0;
 	uint8_t frameSize = 0;
+	uint8_t WIZ_config[64];
+	uint8_t configSize = 0;
+	uint8_t temp[32];
 
 	
   /* USER CODE END 1 */
@@ -203,27 +203,47 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  WIZ_linkCheck();
 	  udp_dataSize = WIZ_recvudp(g_udpData);
-	  if(g_UDPdataRDY == 1){
-		g_UDPdataRDY = 0;
+	  if((g_flag & UDP_DATA_RDY) != 0){
+		g_flag ^= UDP_DATA_RDY;
 		frameSize = Frame_check(g_udpData,udp_dataSize);
-		if(g_frameCheckFlag == 1){
-			g_frameCheckFlag = 0;
+		if((g_flag & FRAME_CHECK_OK) != 0){
+			g_flag ^= FRAME_CHECK_OK;
 			usart2_SendAnswer_DMA(frameSize,g_UDP_Commbuf);
 			__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
 			HAL_TIM_Base_Start_IT(&htim14);
-			while((g_usart2_DataRDY == 0) && (g_timeOutCounter < 10));
+			while(((g_flag & USART_DATA_RDY) == 0) && (g_timeOutCounter < 10));
 			g_timeOutCounter = 0;
-			if(g_usart2_DataRDY == 1){
+			if((g_flag & USART_DATA_RDY) != 0){
 				WIZ_sendudp(SOCKET_UDP,g_usart2RxcommBuf,g_rxisr_frameSize);
-				g_usart2_DataRDY = 0;
+				g_flag ^= USART_DATA_RDY;
 			}
 			__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
 			HAL_TIM_Base_Stop_IT(&htim14);
 		}
 	  }
-	  else if(g_UDPconfigRDY == 1){
-			WIZ_sendudp(SOCKET_CONFIG,config,strlen(config));
-			g_UDPconfigRDY = 0;
+	  else if((g_flag & UDP_CONFIG_RDY) != 0){				
+		uint8_t i =0;
+		while(i<8){
+		temp[i]=g_udpData[i];
+		  i++;
+		}
+		if(strcmp(configStr,temp) == 0){
+			configSize = WIZ_calculateConfig(WIZ_config);
+			WIZ_sendudp(SOCKET_CONFIG,WIZ_config,configSize);
+			g_flag ^= UDP_CONFIG_RDY;
+		}
+		else if(strcmp(locateStr,temp) == 0){
+			uint8_t a[]={"Device located"};
+			WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
+			g_flag ^= UDP_CONFIG_RDY;
+		}
+		else if(strcmp(settingStr,temp) > 0){
+			uint8_t a[]={"Setting Save"};
+			WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
+			g_flag ^= UDP_CONFIG_RDY;			
+		
+		}
+
 	  }
 		
   }
@@ -307,7 +327,8 @@ void HAL_UART_IRQHandlerCallBack(void){
 			g_rxisr_frameSize=usart2RxBuf_Counter;
 			memcpy(g_usart2RxcommBuf,usart2RxBuf,g_rxisr_frameSize);
 			usart2RxBuf_Counter = 0;
-			g_usart2_DataRDY = 1;
+			g_flag |= USART_DATA_RDY;
+//		g_usart2_DataRDY = 1;
 		break;
 		default :
 			usart2RxBuf[usart2RxBuf_Counter] = data;
@@ -369,7 +390,8 @@ uint16_t datasize = 0;
 		ptr += datasize;
 		setSn_RX_RD(SOCKET_UDP,ptr);
 		setSn_CR(SOCKET_UDP,Sn_CR_RECV );
-		g_UDPdataRDY = 1;      
+		g_flag |= UDP_DATA_RDY;
+		//		g_UDPdataRDY = 1;      
     }
 	else if((getSn_IR(SOCKET_CONFIG) & Sn_IR_RECV ) != 0 ){
 	
@@ -386,7 +408,8 @@ uint16_t datasize = 0;
 		ptr += datasize;
 		setSn_RX_RD(SOCKET_CONFIG,ptr);
 		setSn_CR(SOCKET_CONFIG,Sn_CR_RECV );
-		g_UDPconfigRDY = 1 ;
+		g_flag |= UDP_CONFIG_RDY;
+		//		g_UDPconfigRDY = 1 ;
 	}
 
 	return datasize;
@@ -429,7 +452,7 @@ static uint8_t UDP_Buff_Counter = 0;
             UDP_Buff_Counter++;
             UDP_Packet_size = UDP_Buff_Counter;
             UDP_Buff_Counter = 0;
-			g_frameCheckFlag = 1;
+			g_flag |= FRAME_CHECK_OK;
 //            switch(g_UDP_Commbuf[Command_POS]){
 //                case Magic_Command:
 ////                        Make_Magicframe();
@@ -460,7 +483,6 @@ void WIZ_sendudp (uint8_t sn,uint8_t *data, uint16_t len){
 	if(len == 0)  return;
 	freesize = getSn_TX_FSR(sn);
 	if(freesize < len){
-		g_flag = 100;
 		len = freesize;	
 	}
 	setSn_IR(sn , Sn_IR_SENDOK );
@@ -614,6 +636,51 @@ void WIZ_networkConfig (void){
 	setSn_DIPR(SOCKET_CONFIG,g_WIZNetworkSetting.socket1_Destipadd);
 	setSn_PORT(SOCKET_CONFIG,g_WIZNetworkSetting.socket0_SourcePort);
 	setSn_DPORT(SOCKET_CONFIG,g_WIZNetworkSetting.socket0_DestPort);
+	
+}
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+uint8_t WIZ_calculateConfig (uint8_t *data){
+
+	uint8_t counter = 0;
+	uint8_t i = 0;
+
+	data[counter] = '&';
+	counter++;
+	for(i=0;i<4;i++){
+		data[counter] = g_WIZNetworkSetting.ipadd[i];
+		counter++;
+	}
+	data[counter] = '&';
+	counter++;
+	for(i=0;i<6;i++){
+		data[counter] = g_WIZNetworkSetting.mac[i];
+		counter++;
+	}
+	data[counter] = '&';
+	counter++;
+	for(i=0;i<4;i++){
+		data[counter] = g_WIZNetworkSetting.subnet[i];
+		counter++;
+	}
+	data[counter] = '&';
+	counter++;
+	for(i=0;i<4;i++){
+		data[counter] = g_WIZNetworkSetting.socket0_Destipadd[i];
+		counter++;
+	}
+	data[counter] = '&';
+	counter++;
+	for(i=0;i<4;i++){
+		data[counter] = g_WIZNetworkSetting.gateway[i];
+		counter++;
+	}
+	data[counter] = '&';
+	counter++;
+	
+	return counter;
 	
 }
 /* USER CODE END 4 */
