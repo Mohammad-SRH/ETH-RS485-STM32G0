@@ -60,7 +60,7 @@ const int8_t    waitForPHY[]={"Waiting For PHY On...\r\n"};
 const int8_t		PHYReady[]={"PHY On.\r\n"};
 const int8_t		configStr[]={"&config&"};
 const int8_t		locateStr[]={"&locate&"};
-const int8_t		settingStr[]={"&setting&"};
+const int8_t		settingStr[]={"&seting&"};
 
 /* USER CODE END PTD */
 
@@ -86,7 +86,6 @@ volatile uint8_t g_timeOutCounter = 0;
 volatile uint8_t g_UDP_Commbuf[64];
 volatile uint8_t g_rxisr_frameSize = 0;
 volatile uint8_t g_flag =0 ;
-	uint16_t S_PORT = 0;
 
 
 /* USER CODE END PV */
@@ -164,7 +163,7 @@ int main(void)
 	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_RESET);
 	HAL_Delay(5);
 	
-//	memWriteByte(MANUFACTURE_DADA_PROGRAM_BYTE,0xff);
+	memWriteByte(MANUFACTURE_DADA_PROGRAM_BYTE,0xff);
 
 	if(memReadByte(MANUFACTURE_DADA_PROGRAM_BYTE) == 1){	//Read Last Config From Memory
 		memReadArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,4);
@@ -237,11 +236,11 @@ int main(void)
 			WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
 			g_flag ^= UDP_CONFIG_RDY;
 		}
-		else if(strcmp(settingStr,temp) > 0){
+		else if(strcmp(settingStr,temp) == 0){
 			uint8_t a[]={"Setting Save"};
+			WIZ_saveSetting(g_udpData,udp_dataSize);
 			WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
 			g_flag ^= UDP_CONFIG_RDY;			
-		
 		}
 
 	  }
@@ -530,6 +529,11 @@ void WIZ_defaultNetworkConfig (void){
 	defaultmac[4]= (buff >> 8);
 	defaultmac[5]= (buff);
 	
+	g_WIZNetworkSetting.socket0_DestPort = SOCKET0_DEFAULT_DESTPORT;
+	g_WIZNetworkSetting.socket0_SourcePort = SOCKET0_DEFAULT_SOURCEPORT;
+	g_WIZNetworkSetting.socket1_DestPort = SOCKET1_DEFAULT_DESTPORT;
+	g_WIZNetworkSetting.socket1_SourcePort = SOCKET1_DEFAULT_SOURCEPORT;
+	
 	setMR(0x00);	//Common Register INT set to null
 	setIMR(0x00);	//Common Register INT Mask set to null
 	setRTR(0x01f4);		//set Retry Time-value to 50ms
@@ -561,14 +565,14 @@ void WIZ_defaultNetworkConfig (void){
 	setSIPR(memcpy(g_WIZNetworkSetting.ipadd,defaultip,strlen(defaultip)));
 	//Config Socket0 
 	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.socket0_Destipadd,defaultdestip,strlen(defaultdestip)));
-	setSn_PORT(SOCKET_UDP,SOCKET0_DEFAULT_SOURCEPORT);
-	setSn_DPORT(SOCKET_UDP,SOCKET0_DEFAULT_DESTPORT);
+	setSn_PORT(SOCKET_UDP,g_WIZNetworkSetting.socket0_SourcePort);
+	setSn_DPORT(SOCKET_UDP,g_WIZNetworkSetting.socket0_DestPort);
 	setSn_CR(SOCKET_UDP,Sn_CR_OPEN);	//Open Socket 0
 	while((getSn_SR(SOCKET_UDP) != SOCK_UDP));	//wait to socket0 open
 	//Config Socket1 
 	setSn_DIPR(SOCKET_CONFIG,memcpy(g_WIZNetworkSetting.socket1_Destipadd,defaultdestip,strlen(defaultdestip)));
-	setSn_PORT(SOCKET_CONFIG,SOCKET1_DEFAULT_SOURCEPORT);
-	setSn_DPORT(SOCKET_CONFIG,SOCKET1_DEFAULT_DESTPORT);
+	setSn_PORT(SOCKET_CONFIG,g_WIZNetworkSetting.socket1_SourcePort);
+	setSn_DPORT(SOCKET_CONFIG,g_WIZNetworkSetting.socket1_DestPort);
 	setSn_CR(SOCKET_CONFIG,Sn_CR_OPEN);	//Open Socket 1
 	while((getSn_SR(SOCKET_CONFIG) != SOCK_UDP));	//wait to socket1 open
 	
@@ -717,6 +721,67 @@ uint8_t WIZ_calculateConfig (uint8_t *data){
 	counter++;
 	
 	return counter;
+	
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+
+void WIZ_saveSetting (uint8_t *data , uint8_t len){
+	
+	/*
+	EXAMPLE : &seting&4BYTE IP ADD&6BYTE MAC ADD&4BYTE SUBNET&4BYTE DEST IP ADD&4BYTE GATEWAY&
+	*/
+	
+	uint8_t i = 0;
+	uint8_t counter = 0;
+	uint8_t buff[64];
+	
+	
+	if(len >= 30){
+		
+		
+		do{
+			if(data[i] != '&'){
+				buff[counter] = data[i];
+				counter++;
+			}
+			i++;
+			len--;			
+		}while(len > 0);
+		
+		for(i=0;i<4;i++){
+			g_WIZNetworkSetting.ipadd[i] = buff[i+6];
+		}
+		for(i=0;i<6;i++){
+			g_WIZNetworkSetting.mac[i] = buff[i+11];
+		}
+		for(i=0;i<4;i++){
+			g_WIZNetworkSetting.subnet[i] = buff[i+17];
+		}
+		for(i=0;i<4;i++){
+			g_WIZNetworkSetting.socket0_Destipadd[i] = buff[i+21];
+		}
+		for(i=0;i<4;i++){
+			g_WIZNetworkSetting.gateway[i] = buff[i+25];
+		}
+	
+	}
+	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_RESET);
+	HAL_Delay(5);	
+	
+	memWriteArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,4);
+	memWriteArray(MAC_ADDRESS_PAGE,g_WIZNetworkSetting.mac,6);
+	memWriteArray(SUBNET_MASK_PAGE,g_WIZNetworkSetting.subnet,4);
+	memWriteArray(GATEWAY_IP_ADDRESS_PAGE,g_WIZNetworkSetting.gateway,4);
+	memWriteArray(SOCKET0_DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.socket0_Destipadd,4);
+	
+	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_SET);
+	HAL_Delay(5);
+	
+	
 	
 }
 /* USER CODE END 4 */

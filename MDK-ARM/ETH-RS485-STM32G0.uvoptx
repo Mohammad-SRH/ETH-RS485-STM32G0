@@ -153,12 +153,17 @@
         <Ww>
           <count>0</count>
           <WinNumber>1</WinNumber>
-          <ItemText>g_WIZNetworkSetting</ItemText>
+          <ItemText>g_WIZNetworkSetting,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>S_PORT</ItemText>
+          <ItemText>s0,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>2</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>s1,0x0A</ItemText>
         </Ww>
       </WatchWindow1>
       <MemoryWindow1>
