@@ -756,16 +756,16 @@ void WIZ_saveSetting (uint8_t *data , uint8_t len){
 			g_WIZNetworkSetting.ipadd[i] = buff[i+6];
 		}
 		for(i=0;i<6;i++){
-			g_WIZNetworkSetting.mac[i] = buff[i+11];
+			g_WIZNetworkSetting.mac[i] = buff[i+10];
 		}
 		for(i=0;i<4;i++){
-			g_WIZNetworkSetting.subnet[i] = buff[i+17];
+			g_WIZNetworkSetting.subnet[i] = buff[i+16];
 		}
 		for(i=0;i<4;i++){
-			g_WIZNetworkSetting.socket0_Destipadd[i] = buff[i+21];
+			g_WIZNetworkSetting.socket0_Destipadd[i] = buff[i+20];
 		}
 		for(i=0;i<4;i++){
-			g_WIZNetworkSetting.gateway[i] = buff[i+25];
+			g_WIZNetworkSetting.gateway[i] = buff[i+24];
 		}
 	
 	}
