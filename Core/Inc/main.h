@@ -108,23 +108,23 @@ uint8_t WIZ_calculateConfig (uint8_t *data);
 
 /* Wiznet defines -----------------------------------------------------------*/
 
-#define SOCKET_UDP          0
-#define SOCKET_CONFIG		1
-#define UDP_DATA_RDY		1
-#define UDP_CONFIG_RDY		2
-#define USART_DATA_RDY		3
-#define FRAME_CHECK_OK		4
+#define SOCKET_UDP          0U
+#define SOCKET_CONFIG				1U
+#define UDP_DATA_RDY				1U
+#define UDP_CONFIG_RDY			2U
+#define USART_DATA_RDY			3U
+#define FRAME_CHECK_OK			4U
 
 
 /* Network defines -----------------------------------------------------------*/
 
-#define STATIC_FIRST_MAC	0x53
-#define STATIC_SECOND_MAC	0x52
-#define STATIC_THIRD_MAC	0x48 
-#define SOCKET0_DEFAULT_SOURCEPORT	0xAFC8//45000
-#define	SOCKET0_DEFAULT_DESTPORT	0xABE1//44001
-#define SOCKET1_DEFAULT_SOURCEPORT	0xB02C//45100
-#define	SOCKET1_DEFAULT_DESTPORT	0xB090//45200
+#define STATIC_FIRST_MAC						0x53U
+#define STATIC_SECOND_MAC						0x52U
+#define STATIC_THIRD_MAC						0x48U 
+#define SOCKET0_DEFAULT_SOURCEPORT	0xAFC8U//45000
+#define	SOCKET0_DEFAULT_DESTPORT		0xABE1U//44001
+#define SOCKET1_DEFAULT_SOURCEPORT	0xB02CU//45100
+#define	SOCKET1_DEFAULT_DESTPORT		0xB090U//45200
 
 /* Memory defines -----------------------------------------------------------*/
 
@@ -157,18 +157,18 @@ uint8_t WIZ_calculateConfig (uint8_t *data);
 
 */
 
-#define MANUFACTURE_DATA0_PAGE					0
-#define MANUFACTURE_DATA1_PAGE					1
-#define IP_ADDRESS_PAGE							2
-#define MAC_ADDRESS_PAGE						3
-#define SUBNET_MASK_PAGE						4
+#define MANUFACTURE_DATA0_PAGE								0
+#define MANUFACTURE_DATA1_PAGE								1
+#define IP_ADDRESS_PAGE												2
+#define MAC_ADDRESS_PAGE											3
+#define SUBNET_MASK_PAGE											4
 #define SOCKET0_DESTINATION_IP_ADDRESS_PAGE		5
 #define SOCKET1_DESTINATION_IP_ADDRESS_PAGE		6
-#define GATEWAY_IP_ADDRESS_PAGE					7
-#define SOCKET0_SOURCE_PORT_PAGE				8
-#define SOCKET0_DESTINATION_PORT_PAGE			9
-#define SOCKET1_SOURCE_PORT_PAGE				10
-#define SOCKET1_DESTINATION_PORT_PAGE			11
+#define GATEWAY_IP_ADDRESS_PAGE								7
+#define SOCKET0_SOURCE_PORT_PAGE							8
+#define SOCKET0_DESTINATION_PORT_PAGE					9
+#define SOCKET1_SOURCE_PORT_PAGE							10
+#define SOCKET1_DESTINATION_PORT_PAGE					11
 
 
 #define MANUFACTURE_DADA_PROGRAM_BYTE	(MANUFACTURE_DATA0_PAGE*8)
