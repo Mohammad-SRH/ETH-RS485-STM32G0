@@ -150,20 +150,25 @@ int main(void)
 	LL_USART_EnableIT_RXNE(USART2);
 	while( LL_USART_IsEnabled(USART2) == 0); //Wait To Enable USART
 	
+	
 	/*Reset Wiznet */
 	HAL_GPIO_WritePin(ETH_RESET_GPIO_Port,ETH_RESET_Pin,GPIO_PIN_RESET);
 	HAL_Delay(1000);
 	HAL_GPIO_WritePin(ETH_RESET_GPIO_Port,ETH_RESET_Pin,GPIO_PIN_SET);
 	
+	
+
+	
 	usart2_SendAnswer_DMA(strlen(waitForPHY),waitForPHY);
 	while(!(getPHYCFGR() & PHYCFGR_LNK_ON));   //Wait for PHY On
 	usart2_SendAnswer_DMA(strlen(PHYReady),PHYReady);
 	
+		
 	
 	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_RESET);
 	HAL_Delay(5);
 	
-	memWriteByte(MANUFACTURE_DADA_PROGRAM_BYTE,0xff);
+//	memWriteByte(MANUFACTURE_DADA_PROGRAM_BYTE,0xff);
 
 	if(memReadByte(MANUFACTURE_DADA_PROGRAM_BYTE) == 1){	//Read Last Config From Memory
 		memReadArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,4);
@@ -189,6 +194,7 @@ int main(void)
 	HAL_Delay(5);	
 	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_SET);
 	
+//	HAL_IWDG_Refresh(&hiwdg);
 	
   /* USER CODE END 2 */
 
@@ -200,6 +206,7 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+		
 	  WIZ_linkCheck();
 	  udp_dataSize = WIZ_recvudp(g_udpData);
 	  if((g_flag & UDP_DATA_RDY) != 0){
@@ -237,10 +244,12 @@ int main(void)
 			g_flag ^= UDP_CONFIG_RDY;
 		}
 		else if(strcmp(settingStr,temp) == 0){
-			uint8_t a[]={"Setting Save"};
+			uint8_t a[]={"Setting Save,Rebooting Device..."};
 			WIZ_saveSetting(g_udpData,udp_dataSize);
 			WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
-			g_flag ^= UDP_CONFIG_RDY;			
+			g_flag ^= UDP_CONFIG_RDY;
+			NVIC_SystemReset();			
+			while(1);
 		}
 
 	  }
