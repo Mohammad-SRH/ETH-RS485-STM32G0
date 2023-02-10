@@ -55,7 +55,8 @@ typedef struct {
 const uint8_t 	defaultgateway[]={192,168,1,1};
 const uint8_t		defaultsubnet[]={255,255,255,0};
 const uint8_t		defaultip[]={192,168,1,200};
-const uint8_t		defaultdestip[]={192,168,1,255};
+const uint8_t		defaultdestip_Socket0[]={192,168,1,255};
+const uint8_t		defaultdestip_Socket1[]={255,255,255,255};
 const int8_t    waitForPHY[]={"Waiting For PHY On...\r\n"};
 const int8_t		PHYReady[]={"PHY On.\r\n"};
 const int8_t		configStr[]={"&config&"};
@@ -87,6 +88,8 @@ volatile uint8_t g_UDP_Commbuf[64];
 volatile uint8_t g_rxisr_frameSize = 0;
 volatile uint8_t g_flag =0 ;
 
+volatile	uint8_t localBuffer[16];
+
 
 /* USER CODE END PV */
 
@@ -112,7 +115,8 @@ int main(void)
 	uint8_t frameSize = 0;
 	uint8_t WIZ_config[64];
 	uint8_t configSize = 0;
-	uint8_t temp[32];
+
+	volatile uint8_t counter = 0;
 
 
 	
@@ -168,7 +172,7 @@ int main(void)
 	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_RESET);
 	HAL_Delay(5);
 	
-//	memWriteByte(MANUFACTURE_DADA_PROGRAM_BYTE,0xff);
+	memWriteByte(MANUFACTURE_DADA_PROGRAM_BYTE,0xff);
 
 	if(memReadByte(MANUFACTURE_DADA_PROGRAM_BYTE) == 1){	//Read Last Config From Memory
 		memReadArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,4);
@@ -210,51 +214,55 @@ int main(void)
 	  WIZ_linkCheck();
 	  udp_dataSize = WIZ_recvudp(g_udpData);
 	  if((g_flag & UDP_DATA_RDY) != 0){
-		g_flag ^= UDP_DATA_RDY;
-		frameSize = Frame_check(g_udpData,udp_dataSize);
-		if((g_flag & FRAME_CHECK_OK) != 0){
-			g_flag ^= FRAME_CHECK_OK;
-			usart2_SendAnswer_DMA(frameSize,g_UDP_Commbuf);
-			__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
-			HAL_TIM_Base_Start_IT(&htim14);
-			while(((g_flag & USART_DATA_RDY) == 0) && (g_timeOutCounter < 10));
-			g_timeOutCounter = 0;
-			if((g_flag & USART_DATA_RDY) != 0){
-				WIZ_sendudp(SOCKET_UDP,g_usart2RxcommBuf,g_rxisr_frameSize);
-				g_flag ^= USART_DATA_RDY;
+			g_flag ^= UDP_DATA_RDY;
+			frameSize = Frame_check(g_udpData,udp_dataSize);
+			if((g_flag & FRAME_CHECK_OK) != 0){
+				g_flag ^= FRAME_CHECK_OK;
+				usart2_SendAnswer_DMA(frameSize,g_UDP_Commbuf);
+				__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
+				HAL_TIM_Base_Start_IT(&htim14);
+				while(((g_flag & USART_DATA_RDY) == 0) && (g_timeOutCounter < 10));
+				g_timeOutCounter = 0;
+				if((g_flag & USART_DATA_RDY) != 0){
+					WIZ_sendudp(SOCKET_UDP,g_usart2RxcommBuf,g_rxisr_frameSize);
+					g_flag ^= USART_DATA_RDY;
+				}
+				__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
+				HAL_TIM_Base_Stop_IT(&htim14);
 			}
-			__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
-			HAL_TIM_Base_Stop_IT(&htim14);
-		}
 	  }
 	  else if((g_flag & UDP_CONFIG_RDY) != 0){				
-		uint8_t i =0;
-		while(i<8){
-		temp[i]=g_udpData[i];
-		  i++;
-		}
-		if(strcmp(configStr,temp) == 0){
-			configSize = WIZ_calculateConfig(WIZ_config);
-			WIZ_sendudp(SOCKET_CONFIG,WIZ_config,configSize);
-			g_flag ^= UDP_CONFIG_RDY;
-		}
-		else if(strcmp(locateStr,temp) == 0){
-			uint8_t a[]={"Device located"};
-			WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
-			g_flag ^= UDP_CONFIG_RDY;
-		}
-		else if(strcmp(settingStr,temp) == 0){
-			if(WIZ_saveSetting(g_udpData,udp_dataSize) == 1){
-				uint8_t a[]={"Setting Save,Rebooting Device..."};
+			memcpy(localBuffer,g_udpData,8);
+			if(strcasecmp(localBuffer,configStr) == 0){
+				configSize = WIZ_calculateConfig(WIZ_config);
+				WIZ_sendudp(SOCKET_CONFIG,WIZ_config,configSize);
+//				g_flag ^= UDP_CONFIG_RDY;
+			}
+			else if(strcasecmp(localBuffer,locateStr) == 0){
+				uint8_t a[]={"Device located"};
 				WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
-				g_flag ^= UDP_CONFIG_RDY;
-				NVIC_SystemReset();			
+//				g_flag ^= UDP_CONFIG_RDY;
 			}
-			else{
-				uint8_t a[]={"save Setting Error!"};
-				WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));	
+			else if(strcasecmp(localBuffer,settingStr) == 0){
+				if(WIZ_saveSetting(g_udpData,udp_dataSize) == 1){
+					uint8_t a[]={"Setting Save,Rebooting Device..."};
+					WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
+//					g_flag ^= UDP_CONFIG_RDY;
+					NVIC_SystemReset();			
+				}
+				else{
+					uint8_t a[]={"Save Setting Error!Worng Data."};
+					WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
+//					g_flag ^= UDP_CONFIG_RDY;				
+				}
 			}
-		}
+//			counter = udp_dataSize;
+			while(udp_dataSize > 0){
+				g_udpData[udp_dataSize]=0;
+				udp_dataSize--;
+			}
+//			counter = 0;
+			g_flag ^= UDP_CONFIG_RDY;	
 
 	  }
 		
@@ -577,13 +585,13 @@ void WIZ_defaultNetworkConfig (void){
 	setSUBR(memcpy(g_WIZNetworkSetting.subnet,defaultsubnet,strlen(defaultsubnet)));
 	setSIPR(memcpy(g_WIZNetworkSetting.ipadd,defaultip,strlen(defaultip)));
 	//Config Socket0 
-	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.socket0_Destipadd,defaultdestip,strlen(defaultdestip)));
+	setSn_DIPR(SOCKET_UDP,memcpy(g_WIZNetworkSetting.socket0_Destipadd,defaultdestip_Socket0,strlen(defaultdestip_Socket0)));
 	setSn_PORT(SOCKET_UDP,g_WIZNetworkSetting.socket0_SourcePort);
 	setSn_DPORT(SOCKET_UDP,g_WIZNetworkSetting.socket0_DestPort);
 	setSn_CR(SOCKET_UDP,Sn_CR_OPEN);	//Open Socket 0
 	while((getSn_SR(SOCKET_UDP) != SOCK_UDP));	//wait to socket0 open
 	//Config Socket1 
-	setSn_DIPR(SOCKET_CONFIG,memcpy(g_WIZNetworkSetting.socket1_Destipadd,defaultdestip,strlen(defaultdestip)));
+	setSn_DIPR(SOCKET_CONFIG,memcpy(g_WIZNetworkSetting.socket1_Destipadd,defaultdestip_Socket1,strlen(defaultdestip_Socket1)));
 	setSn_PORT(SOCKET_CONFIG,g_WIZNetworkSetting.socket1_SourcePort);
 	setSn_DPORT(SOCKET_CONFIG,g_WIZNetworkSetting.socket1_DestPort);
 	setSn_CR(SOCKET_CONFIG,Sn_CR_OPEN);	//Open Socket 1
@@ -773,10 +781,9 @@ uint8_t WIZ_saveSetting (uint8_t *data , uint8_t len){
 	uint8_t counter = 0;
 	uint8_t buff[64];
 	uint8_t retval = 0;
-	uint16_t sport = 0;
-	uint16_t dport = 0;
+	uint8_t symbolCounter = 0;
 	
-	if(len >= 30){
+	if(len == SAVE_SETTING_LEN){
 		
 		
 		do{
@@ -784,52 +791,48 @@ uint8_t WIZ_saveSetting (uint8_t *data , uint8_t len){
 				buff[counter] = data[i];
 				counter++;
 			}
+			else{
+				symbolCounter++;
+			}
 			i++;
 			len--;			
 		}while(len > 0);
-		
-		for(i=0;i<4;i++){
-			g_WIZNetworkSetting.ipadd[i] = buff[i+6];
+		if(symbolCounter == 9){
+			
+			for(i=0;i<4;i++){
+				g_WIZNetworkSetting.ipadd[i] = buff[i+6];
+			}
+			for(i=0;i<6;i++){
+				g_WIZNetworkSetting.mac[i] = buff[i+10];
+			}
+			for(i=0;i<4;i++){
+				g_WIZNetworkSetting.subnet[i] = buff[i+16];
+			}
+			for(i=0;i<4;i++){
+				g_WIZNetworkSetting.socket0_Destipadd[i] = buff[i+20];
+			}
+			for(i=0;i<4;i++){
+				g_WIZNetworkSetting.gateway[i] = buff[i+24];
+			}
+			g_WIZNetworkSetting.socket0_SourcePort = (buff[28]<<8);
+			g_WIZNetworkSetting.socket0_SourcePort |= buff[29];
+			g_WIZNetworkSetting.socket0_DestPort = (buff[30]<<8);
+			g_WIZNetworkSetting.socket0_DestPort |= buff[31];
+			
+			HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_RESET);
+			HAL_Delay(5);	
+			memWriteArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,4);
+			memWriteArray(MAC_ADDRESS_PAGE,g_WIZNetworkSetting.mac,6);
+			memWriteArray(SUBNET_MASK_PAGE,g_WIZNetworkSetting.subnet,4);
+			memWriteArray(GATEWAY_IP_ADDRESS_PAGE,g_WIZNetworkSetting.gateway,4);
+			memWriteArray(SOCKET0_DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.socket0_Destipadd,4);
+			memWriteHalfWord(SOCKET0_SOURCE_PORT_BYTE,g_WIZNetworkSetting.socket0_SourcePort);
+			memWriteHalfWord(SOCKET0_DESTINATION_PORT_BYTE,g_WIZNetworkSetting.socket0_DestPort);
+			HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_SET);
+			HAL_Delay(5);
+			
+			retval = 1;
 		}
-		for(i=0;i<6;i++){
-			g_WIZNetworkSetting.mac[i] = buff[i+10];
-		}
-		for(i=0;i<4;i++){
-			g_WIZNetworkSetting.subnet[i] = buff[i+16];
-		}
-		for(i=0;i<4;i++){
-			g_WIZNetworkSetting.socket0_Destipadd[i] = buff[i+20];
-		}
-		for(i=0;i<4;i++){
-			g_WIZNetworkSetting.gateway[i] = buff[i+24];
-		}
-		
-//		sport = buff[28];
-//		sport |= (8<<sport);
-//		sport |= buff[29];
-////		sport = ((8<<buff[28]) | buff[29]);
-//		dport = ((8<<buff[30]) | buff[31]);
-		g_WIZNetworkSetting.socket0_SourcePort = (buff[28]<<8);
-		g_WIZNetworkSetting.socket0_SourcePort |= buff[29];
-		g_WIZNetworkSetting.socket0_DestPort = (buff[30]<<8);
-		g_WIZNetworkSetting.socket0_DestPort |= buff[31];
-		
-	
-	
-		HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_RESET);
-		HAL_Delay(5);	
-		
-		memWriteArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,4);
-		memWriteArray(MAC_ADDRESS_PAGE,g_WIZNetworkSetting.mac,6);
-		memWriteArray(SUBNET_MASK_PAGE,g_WIZNetworkSetting.subnet,4);
-		memWriteArray(GATEWAY_IP_ADDRESS_PAGE,g_WIZNetworkSetting.gateway,4);
-		memWriteArray(SOCKET0_DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.socket0_Destipadd,4);
-		memWriteHalfWord(SOCKET0_SOURCE_PORT_BYTE,g_WIZNetworkSetting.socket0_SourcePort);
-		memWriteHalfWord(SOCKET0_DESTINATION_PORT_BYTE,g_WIZNetworkSetting.socket0_DestPort);
-		
-		HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_SET);
-		HAL_Delay(5);
-		retval = 1;
 	}
 	
 	return retval;

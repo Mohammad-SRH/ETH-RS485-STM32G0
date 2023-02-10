@@ -158,12 +158,12 @@
         <Ww>
           <count>1</count>
           <WinNumber>1</WinNumber>
-          <ItemText>s0,0x0A</ItemText>
+          <ItemText>g_udpData</ItemText>
         </Ww>
         <Ww>
           <count>2</count>
           <WinNumber>1</WinNumber>
-          <ItemText>s1,0x0A</ItemText>
+          <ItemText>localBuffer</ItemText>
         </Ww>
       </WatchWindow1>
       <MemoryWindow1>

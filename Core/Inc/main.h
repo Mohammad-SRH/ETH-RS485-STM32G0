@@ -119,13 +119,14 @@ uint8_t WIZ_saveSetting (uint8_t *data , uint8_t len);
 
 /* Network defines -----------------------------------------------------------*/
 
-#define STATIC_FIRST_MAC						0x53U
-#define STATIC_SECOND_MAC						0x52U
-#define STATIC_THIRD_MAC						0x48U 
-#define SOCKET0_DEFAULT_SOURCEPORT	0xAFC8U//45000
-#define	SOCKET0_DEFAULT_DESTPORT		0xABE1U//44001
-#define SOCKET1_DEFAULT_SOURCEPORT	0xB02CU//45100
-#define	SOCKET1_DEFAULT_DESTPORT		0xB090U//45200
+#define STATIC_FIRST_MAC						0x53
+#define STATIC_SECOND_MAC						0x52
+#define STATIC_THIRD_MAC						0x48 
+#define SOCKET0_DEFAULT_SOURCEPORT	0xAFC8//45000
+#define	SOCKET0_DEFAULT_DESTPORT		0xABE1//44001
+#define SOCKET1_DEFAULT_SOURCEPORT	0xB02C//45100
+#define	SOCKET1_DEFAULT_DESTPORT		0xB090//45200
+#define SAVE_SETTING_LEN						41U
 
 /* Memory defines -----------------------------------------------------------*/
 
