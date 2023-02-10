@@ -88,7 +88,6 @@ volatile uint8_t g_UDP_Commbuf[64];
 volatile uint8_t g_rxisr_frameSize = 0;
 volatile uint8_t g_flag =0 ;
 
-volatile	uint8_t localBuffer[16];
 
 
 /* USER CODE END PV */
@@ -115,8 +114,8 @@ int main(void)
 	uint8_t frameSize = 0;
 	uint8_t WIZ_config[64];
 	uint8_t configSize = 0;
+	uint8_t localBuffer[16];
 
-	volatile uint8_t counter = 0;
 
 
 	
