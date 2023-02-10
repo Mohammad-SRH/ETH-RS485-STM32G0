@@ -79,7 +79,7 @@ void WIZ_linkCheck (void);
 void WIZ_basicConfig (void);
 void WIZ_networkConfig (void);
 uint8_t WIZ_calculateConfig (uint8_t *data);
-void WIZ_saveSetting (uint8_t *data , uint8_t len);
+uint8_t WIZ_saveSetting (uint8_t *data , uint8_t len);
 
 /* USER CODE END EFP */
 

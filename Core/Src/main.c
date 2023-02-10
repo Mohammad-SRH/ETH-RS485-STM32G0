@@ -244,12 +244,16 @@ int main(void)
 			g_flag ^= UDP_CONFIG_RDY;
 		}
 		else if(strcmp(settingStr,temp) == 0){
-			uint8_t a[]={"Setting Save,Rebooting Device..."};
-			WIZ_saveSetting(g_udpData,udp_dataSize);
-			WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
-			g_flag ^= UDP_CONFIG_RDY;
-			NVIC_SystemReset();			
-			while(1);
+			if(WIZ_saveSetting(g_udpData,udp_dataSize) == 1){
+				uint8_t a[]={"Setting Save,Rebooting Device..."};
+				WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
+				g_flag ^= UDP_CONFIG_RDY;
+				NVIC_SystemReset();			
+			}
+			else{
+				uint8_t a[]={"save Setting Error!"};
+				WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));	
+			}
 		}
 
 	  }
@@ -693,6 +697,10 @@ void WIZ_networkConfig (void){
   */
 uint8_t WIZ_calculateConfig (uint8_t *data){
 
+		/*
+	EXAMPLE : &config&4BYTE IP ADD&6BYTE MAC ADD&4BYTE SUBNET&4BYTE DEST IP ADD&4BYTE GATEWAY&2BYTE SOURCE PORT&2BYTE DEST PORT&
+	*/
+	
 	uint8_t counter = 0;
 	uint8_t i = 0;
 
@@ -729,6 +737,23 @@ uint8_t WIZ_calculateConfig (uint8_t *data){
 	data[counter] = '&';
 	counter++;
 	
+	data[counter] = (g_WIZNetworkSetting.socket0_SourcePort>>8);
+	counter++;
+	data[counter] = (g_WIZNetworkSetting.socket0_SourcePort);
+	counter++;
+	
+	data[counter] = '&';
+	counter++;
+	
+	data[counter] = (g_WIZNetworkSetting.socket0_DestPort>>8);
+	counter++;
+	data[counter] = (g_WIZNetworkSetting.socket0_DestPort);
+	counter++;
+	
+	data[counter] = '&';
+	counter++;
+	
+	
 	return counter;
 	
 }
@@ -738,16 +763,18 @@ uint8_t WIZ_calculateConfig (uint8_t *data){
   * @retval None
   */
 
-void WIZ_saveSetting (uint8_t *data , uint8_t len){
+uint8_t WIZ_saveSetting (uint8_t *data , uint8_t len){
 	
 	/*
-	EXAMPLE : &seting&4BYTE IP ADD&6BYTE MAC ADD&4BYTE SUBNET&4BYTE DEST IP ADD&4BYTE GATEWAY&
+	EXAMPLE : &seting&4BYTE IP ADD&6BYTE MAC ADD&4BYTE SUBNET&4BYTE DEST IP ADD&4BYTE GATEWAY&2BYTE SOURCE PORT&2BYTE DEST PORT&
 	*/
 	
 	uint8_t i = 0;
 	uint8_t counter = 0;
 	uint8_t buff[64];
-	
+	uint8_t retval = 0;
+	uint16_t sport = 0;
+	uint16_t dport = 0;
 	
 	if(len >= 30){
 		
@@ -776,22 +803,36 @@ void WIZ_saveSetting (uint8_t *data , uint8_t len){
 		for(i=0;i<4;i++){
 			g_WIZNetworkSetting.gateway[i] = buff[i+24];
 		}
+		
+//		sport = buff[28];
+//		sport |= (8<<sport);
+//		sport |= buff[29];
+////		sport = ((8<<buff[28]) | buff[29]);
+//		dport = ((8<<buff[30]) | buff[31]);
+		g_WIZNetworkSetting.socket0_SourcePort = (buff[28]<<8);
+		g_WIZNetworkSetting.socket0_SourcePort |= buff[29];
+		g_WIZNetworkSetting.socket0_DestPort = (buff[30]<<8);
+		g_WIZNetworkSetting.socket0_DestPort |= buff[31];
+		
 	
+	
+		HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_RESET);
+		HAL_Delay(5);	
+		
+		memWriteArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,4);
+		memWriteArray(MAC_ADDRESS_PAGE,g_WIZNetworkSetting.mac,6);
+		memWriteArray(SUBNET_MASK_PAGE,g_WIZNetworkSetting.subnet,4);
+		memWriteArray(GATEWAY_IP_ADDRESS_PAGE,g_WIZNetworkSetting.gateway,4);
+		memWriteArray(SOCKET0_DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.socket0_Destipadd,4);
+		memWriteHalfWord(SOCKET0_SOURCE_PORT_BYTE,g_WIZNetworkSetting.socket0_SourcePort);
+		memWriteHalfWord(SOCKET0_DESTINATION_PORT_BYTE,g_WIZNetworkSetting.socket0_DestPort);
+		
+		HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_SET);
+		HAL_Delay(5);
+		retval = 1;
 	}
-	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_RESET);
-	HAL_Delay(5);	
 	
-	memWriteArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,4);
-	memWriteArray(MAC_ADDRESS_PAGE,g_WIZNetworkSetting.mac,6);
-	memWriteArray(SUBNET_MASK_PAGE,g_WIZNetworkSetting.subnet,4);
-	memWriteArray(GATEWAY_IP_ADDRESS_PAGE,g_WIZNetworkSetting.gateway,4);
-	memWriteArray(SOCKET0_DESTINATION_IP_ADDRESS_PAGE,g_WIZNetworkSetting.socket0_Destipadd,4);
-	
-	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_SET);
-	HAL_Delay(5);
-	
-	
-	
+	return retval;
 }
 /* USER CODE END 4 */
 
