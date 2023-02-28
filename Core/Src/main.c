@@ -112,7 +112,8 @@ int main(void)
 	uint8_t frameSize = 0;
 	uint8_t WIZ_config[64];
 	uint8_t configSize = 0;
-	uint8_t temp[32];
+	uint8_t buff[32];
+	uint8_t i =0;
 
 	
   /* USER CODE END 1 */
@@ -163,11 +164,11 @@ int main(void)
 	HAL_GPIO_WritePin(MEM_WP_GPIO_Port,MEM_WP_Pin,GPIO_PIN_RESET);
 	HAL_Delay(5);
 	
-	memWriteByte(MANUFACTURE_DADA_PROGRAM_BYTE,0xff);
-//	uint16_t i =0;
+//	memWriteByte(MANUFACTURE_DADA_PROGRAM_BYTE,0xff);
 //	for(i=0;i<1024;i++){
 //			memWriteByte(i,0xff);
 //	}
+//	memWriteByte(MANUFACTURE_DADA_PROGRAM_BYTE,0xff);
 	if(memReadByte(MANUFACTURE_DADA_PROGRAM_BYTE) == 1){	//Read Last Config From Memory
 		memReadArray(IP_ADDRESS_PAGE,g_WIZNetworkSetting.ipadd,4);
 		memReadArray(MAC_ADDRESS_PAGE,g_WIZNetworkSetting.mac,6);
@@ -222,22 +223,22 @@ int main(void)
 		}
 	  }
 	  else if((g_flag & UDP_CONFIG_RDY) != 0){				
-		uint8_t i =0;
 		while(i<8){
-		temp[i]=g_udpData[i];
+		buff[i]=g_udpData[i];
 		  i++;
 		}
-		if(strcmp(configStr,temp) == 0){
+		if(strcmp(configStr,buff) == 0){
 			configSize = WIZ_calculateConfig(WIZ_config);
 			WIZ_sendudp(SOCKET_CONFIG,WIZ_config,configSize);
 			g_flag ^= UDP_CONFIG_RDY;
 		}
-		else if(strcmp(locateStr,temp) == 0){
+		else if(strcmp(locateStr,buff) == 0){
 			uint8_t a[]={"Device located"};
 			WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
 			g_flag ^= UDP_CONFIG_RDY;
 		}
-		else if(strcmp(settingStr,temp) > 0){
+		else {
+//			parsData(g_udpData,udp_dataSize);
 			uint8_t a[]={"Setting Save"};
 			WIZ_sendudp(SOCKET_CONFIG,a,strlen(a));
 			g_flag ^= UDP_CONFIG_RDY;			
@@ -681,6 +682,30 @@ uint8_t WIZ_calculateConfig (uint8_t *data){
 	counter++;
 	
 	return counter;
+	
+}
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void parsData (uint8_t *data , uint8_t len){
+	
+	uint8_t buff[64];
+	uint8_t i = 0;
+	uint8_t symbolCounter = 0;
+//	memcpy(buff,data,len);
+	for(i=0;i<len;i++){
+		switch (data[i]){
+			case '&' :
+				symbolCounter++;
+			break;
+			default:
+				buff[i] = data[i];
+			break;
+		}
+	}
+	memcpy(g_WIZNetworkSetting.ipadd,buff,4);
+//	memWriteArray(IP_ADDRESS_PAGE,buff,4);
 	
 }
 /* USER CODE END 4 */
