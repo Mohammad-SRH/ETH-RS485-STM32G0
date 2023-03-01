@@ -110,10 +110,10 @@ void SystemClock_Config(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	uint8_t udp_dataSize = 0;
-	uint8_t frameSize = 0;
-	uint8_t WIZ_config[64];
-	uint8_t configSize = 0;
+	volatile uint8_t udp_dataSize = 0;
+	volatile uint8_t frameSize = 0;
+	volatile uint8_t WIZ_config[64];
+	volatile uint8_t configSize = 0;
 
 
 	
@@ -223,12 +223,6 @@ int main(void)
 				HAL_TIM_Base_Start_IT(&htim14);
 				while(((g_flag & USART_DATA_RDY) == 0) && (g_timeOutCounter < 10));
 				g_timeOutCounter = 0;
-				if((g_flag & USART_DATA_RDY) != 0){
-					WIZ_sendudp(SOCKET_UDP,g_usart2RxcommBuf,g_rxisr_frameSize);
-					g_flag ^= USART_DATA_RDY;
-				}
-				__HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
-				HAL_TIM_Base_Stop_IT(&htim14);
 			}
 	  }
 	  else if((g_flag & UDP_CONFIG_RDY) != 0){				
@@ -259,6 +253,12 @@ int main(void)
 			g_flag ^= UDP_CONFIG_RDY;	
 
 	  }
+	  if((g_flag & USART_DATA_RDY) != 0){
+		WIZ_sendudp(SOCKET_UDP,g_usart2RxcommBuf,g_rxisr_frameSize);
+		g_flag ^= USART_DATA_RDY;
+	  }
+	  __HAL_TIM_CLEAR_FLAG(&htim14,TIM_FLAG_UPDATE);
+	  HAL_TIM_Base_Stop_IT(&htim14);
 		
   }
   /* USER CODE END 3 */
@@ -451,22 +451,40 @@ uint8_t UDP_Packet_size=0;
 static uint8_t UDP_Buff_Counter = 0; 
     
     for(i=0;i<len;i++){
-        if(data[i] == Start_Byte){
-            UDP_Buff_Counter=0;
-            g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
-            UDP_Buff_Counter++;
-        }
-        else if( (UDP_Buff_Counter > 0) && (data[i] != Stop_Byte) ){
-            g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
-            UDP_Buff_Counter++; 
-        }
-        else if((UDP_Buff_Counter > 0) && (data[i] == Stop_Byte)){
-            g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
-            UDP_Buff_Counter++;
-            UDP_Packet_size = UDP_Buff_Counter;
-            UDP_Buff_Counter = 0;
-			g_flag |= FRAME_CHECK_OK;           
-        }                    
+//        if(data[i] == Start_Byte){
+//            UDP_Buff_Counter=0;
+//            g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
+//            UDP_Buff_Counter++;
+//        }
+//        else if( (UDP_Buff_Counter > 0) && (data[i] != Stop_Byte) ){
+//            g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
+//            UDP_Buff_Counter++; 
+//        }
+//        else if((UDP_Buff_Counter > 0) && (data[i] == Stop_Byte)){
+//            g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
+//            UDP_Buff_Counter++;
+//            UDP_Packet_size = UDP_Buff_Counter;
+//            UDP_Buff_Counter = 0;
+//			g_flag |= FRAME_CHECK_OK;           
+//        }                    
+		switch(data[i]){
+			case Start_Byte:
+				UDP_Buff_Counter=0;
+				g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
+				UDP_Buff_Counter++;				
+			break;
+			case Stop_Byte:
+				g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
+				UDP_Buff_Counter++;
+				UDP_Packet_size = UDP_Buff_Counter;
+				UDP_Buff_Counter = 0;
+				g_flag |= FRAME_CHECK_OK;  				
+			break;
+			default:
+				g_UDP_Commbuf[UDP_Buff_Counter]=data[i];
+				UDP_Buff_Counter++; 				
+			break;
+		}
     }
     return UDP_Packet_size;           
 }
@@ -498,9 +516,14 @@ void WIZ_sendudp (uint8_t sn,uint8_t *data, uint16_t len){
 	setSn_CR(sn,Sn_CR_SEND );
 	while(!(getSn_IR(sn) & (Sn_IR_SENDOK) )){
 		if((getSn_IR(sn)) & (Sn_IR_TIMEOUT)){
-			setSn_IR(sn,(Sn_IR_SENDOK | Sn_IR_TIMEOUT));
-			break;
+//			setSn_IR(sn,(Sn_IR_SENDOK | Sn_IR_TIMEOUT));
+			setSn_IR(sn,(Sn_IR_TIMEOUT));
+//			break;
 		}
+//		if((getSn_IR(sn)) & (Sn_IR_TIMEOUT)){
+//			setSn_IR(sn,(Sn_IR_TIMEOUT));
+//			WIZ_sendudp(SOCKET_UDP,g_usart2RxcommBuf,g_rxisr_frameSize);
+//		}
 	}
 	setSn_IR(sn , Sn_IR_SENDOK );
 }
@@ -519,8 +542,8 @@ void WIZ_defaultNetworkConfig (void){
 	UID[1] = HAL_GetUIDw1();
 	UID[2] = HAL_GetUIDw2();
 	
-	buff = (UID[0] ^ UID[1]);
-	buff = (buff ^ UID[2]);
+	buff = (UID[0] ^ UID[2]);
+	buff = (buff ^ UID[1]);
 	buff &= (0xffffff);
 	
 	defaultmac[0]= STATIC_FIRST_MAC;
@@ -538,7 +561,7 @@ void WIZ_defaultNetworkConfig (void){
 	setMR(0x00);	//Common Register INT set to null
 	setIMR(0x00);	//Common Register INT Mask set to null
 	setRTR(0x01f4);		//set Retry Time-value to 50ms
-	setRCR(0x0002);		//set Retry Count to 2 
+	setRCR(0x0005);		//set Retry Count to 5 
 	
 	setSn_RXBUF_SIZE(SOCKET_UDP,0x02);	//set Socket0 RXbuff
 	setSn_TXBUF_SIZE(SOCKET_UDP,0x02);	//set Socket0 TXbuff
@@ -621,7 +644,7 @@ void WIZ_basicConfig (void){
 	setMR(0x00);	//Common Register INT set to null
 	setIMR(0x00);	//Common Register INT Mask set to null
 	setRTR(0x01f4);		//set Retry Time-value to 50ms
-	setRCR(0x0002);		//set Retry Count to 2 
+	setRCR(0x0005);		//set Retry Count to 5 
 	
 	setSn_RXBUF_SIZE(SOCKET_UDP,0x02);	//set Socket0 RXbuff
 	setSn_TXBUF_SIZE(SOCKET_UDP,0x02);	//set Socket0 TXbuff
@@ -649,15 +672,15 @@ void WIZ_networkConfig (void){
 	setMR(0x00);	//Common Register INT set to null
 	setIMR(0x00);	//Common Register INT Mask set to null
 	setRTR(0x01f4);		//set Retry Time-value to 50ms
-	setRCR(0x0002);		//set Retry Count to 2 
+	setRCR(0x0005);		//set Retry Count to 5 
 	
 	setSn_RXBUF_SIZE(SOCKET_UDP,0x02);	//set Socket0 RXbuff
 	setSn_TXBUF_SIZE(SOCKET_UDP,0x02);	//set Socket0 TXbuff
 	setSn_RXBUF_SIZE(SOCKET_CONFIG,0x02);	//set Socket1 RXbuff
 	setSn_TXBUF_SIZE(SOCKET_CONFIG,0x02);	//set Socket1 TXbuff
 
-	setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP Socket 0
-	setSn_MR(SOCKET_CONFIG,Sn_MR_UDP);  //Set UDP Socket 1
+	setSn_MR(SOCKET_UDP,Sn_MR_UDP);  //Set UDP Socket 0 
+	setSn_MR(SOCKET_CONFIG,Sn_MR_UDP);  //Set UDP Socket 1 
 
 	
 	//Config Wiznet Network Info
