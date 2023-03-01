@@ -53,15 +53,15 @@ typedef struct {
 
 
 const uint8_t 	defaultgateway[]={192,168,1,1};
-const uint8_t		defaultsubnet[]={255,255,255,0};
-const uint8_t		defaultip[]={192,168,1,200};
-const uint8_t		defaultdestip_Socket0[]={192,168,1,255};
-const uint8_t		defaultdestip_Socket1[]={255,255,255,255};
+const uint8_t	defaultsubnet[]={255,255,255,0};
+const uint8_t	defaultip[]={192,168,1,200};
+const uint8_t	defaultdestip_Socket0[]={192,168,1,255};
+const uint8_t	defaultdestip_Socket1[]={255,255,255,255};
 const int8_t    waitForPHY[]={"Waiting For PHY On...\r\n"};
-const int8_t		PHYReady[]={"PHY On.\r\n"};
-const int8_t		configStr[]={"&config&"};
-const int8_t		locateStr[]={"&locate&"};
-const int8_t		settingStr[]={"&seting&"};
+const int8_t	PHYReady[]={"PHY On.\r\n"};
+const int8_t	configStr[]={"&config&"};
+const int8_t	locateStr[]={"&locate&"};
+const int8_t	settingStr[]={"&seting&"};
 
 /* USER CODE END PTD */
 
@@ -87,7 +87,7 @@ volatile uint8_t g_timeOutCounter = 0;
 volatile uint8_t g_UDP_Commbuf[64];
 volatile uint8_t g_rxisr_frameSize = 0;
 volatile uint8_t g_flag =0 ;
-volatile	uint8_t localBuffer[16];
+volatile uint8_t localBuffer[16];
 
 
 /* USER CODE END PV */
@@ -114,8 +114,7 @@ int main(void)
 	uint8_t frameSize = 0;
 	uint8_t WIZ_config[64];
 	uint8_t configSize = 0;
-	uint8_t buff[32];
-	uint8_t i =0;
+
 
 	
   /* USER CODE END 1 */
